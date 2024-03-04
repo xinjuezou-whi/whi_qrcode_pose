@@ -1,0 +1,7 @@
+whi_qrcode_pose:
+  frame_id: camera
+  image_topic: image
+  camera_device: /dev/video0
+  image_path: /home/whi/catkin_workspace/src/whi_qrcode_pose/debug_images/
+  source: path # topic/device/path
+  loop_hz: 20 # hz

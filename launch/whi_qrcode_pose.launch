@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<launch>
+  <!-- argument -->
+
+  <!-- params -->
+  <rosparam file="$(find whi_qrcode_pose)/config/config.yaml" command="load" subst_value="true"/>
+
+  <!-- hardware interface -->
+  <node name="whi_qrcode_pose" pkg="whi_qrcode_pose" type="whi_qrcode_pose_node" output="screen"/>
+</launch>
