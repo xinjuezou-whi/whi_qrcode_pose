@@ -5,5 +5,7 @@ whi_qrcode_pose:
   image_path: /home/whi/catkin_workspace/src/whi_qrcode_pose/debug_images/
   source: path # topic/device/path
   loop_hz: 20 # hz
+  show_image: true
+  service: offset_request
   intrinsic_projection: [385.75, 385.75, 323.12, 236.74]
   intrinsic_distortion: [0.0, 0.0, 0.0, 0.0]

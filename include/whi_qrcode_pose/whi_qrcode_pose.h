@@ -16,12 +16,14 @@ Changelog:
 ******************************************************************/
 #pragma once
 #include "whi_base_camera.h"
+#include "whi_interfaces/WhiSrvQrOffset.h"
 
 #include <image_transport/image_transport.h>
 #include <camera_info_manager/camera_info_manager.h>
 
 #include <memory>
 #include <thread>
+#include <mutex>
 
 namespace whi_qrcode_pose
 {
@@ -35,19 +37,21 @@ namespace whi_qrcode_pose
         void init();
         void update(const ros::TimerEvent & Event);
         void streaming(std::shared_ptr<WhiCamera> Camera);
-        sensor_msgs::Image::Ptr convert(const sensor_msgs::ImageConstPtr Img) const;
+        bool onServiceOffset(whi_interfaces::WhiSrvQrOffset::Request& Request,
+            whi_interfaces::WhiSrvQrOffset::Response& Response);
 
     protected:
         std::shared_ptr<ros::NodeHandle> node_handle_{ nullptr };
         std::unique_ptr<ros::Timer> non_realtime_loop_{ nullptr };
         ros::Duration elapsed_time_;
         double loop_hz_{ 10.0 };
+        bool show_image_{ false };
         std::thread th_streaming_;
         std::atomic<bool> terminated_{ false };
         std::string frame_id_{ "camera" };
-        std::unique_ptr<image_transport::ImageTransport> image_transport_{ nullptr };
-        std::unique_ptr<camera_info_manager::CameraInfoManager> cam_info_{ nullptr };
-        std::unique_ptr<image_transport::Publisher> pub_image_{ nullptr };
-        std::unique_ptr<image_transport::CameraPublisher> pub_info_{ nullptr };
+        std::unique_ptr<ros::ServiceServer> service_{ nullptr };
+        cv::Mat rotation_vec_;
+        cv::Mat translation_vec_;
+        std::mutex mtx_;
 	};
 } // namespace whi_qrcode_pose

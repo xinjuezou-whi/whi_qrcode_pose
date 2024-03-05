@@ -15,6 +15,11 @@ All text above must be included in any redistribution.
 #include "whi_qrcode_pose/whi_v4l_device.h"
 #include "whi_qrcode_pose/whi_images_from_path.h"
 
+#include <tf2/LinearMath/Matrix3x3.h>
+#include <tf2/LinearMath/Transform.h>
+#include <tf2/LinearMath/Quaternion.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+
 #include <opencv2/opencv.hpp>
 
 namespace whi_qrcode_pose
@@ -44,6 +49,7 @@ namespace whi_qrcode_pose
         node_handle_->param("image_path", imgPath, std::string(""));
         std::string imgSouce;
         node_handle_->param("source", imgSouce, std::string("topic")); // topic, device, path
+        node_handle_->param("show_image", show_image_, false);
 
         /// camera
         std::shared_ptr<WhiCamera> camera;
@@ -66,6 +72,12 @@ namespace whi_qrcode_pose
         }
 
         streaming(camera);
+
+        // service
+        std::string service;
+        node_handle_->param("service", service, std::string("offset_request"));
+        service_ = std::make_unique<ros::ServiceServer>(
+            node_handle_->advertiseService(service, &QrcodePose::onServiceOffset, this));
 
         // spinner
         node_handle_->param("loop_hz", loop_hz_, 10.0);
@@ -91,8 +103,6 @@ namespace whi_qrcode_pose
         }
         Camera->start();
 
-        cam_info_ = std::make_unique<camera_info_manager::CameraInfoManager>(*node_handle_, Camera->getCameraName());
-
         th_streaming_ = std::thread
         {
             [this, Camera]() -> void
@@ -113,7 +123,7 @@ namespace whi_qrcode_pose
 	                cv::Mat codeCorners;
 	                if (detecter.detect(*img, codeCorners))
                     {
-#ifndef DEBUG
+#ifdef DEBUG
                         std::cout << "code corners " << codeCorners << std::endl;
 #endif
                         float objectPoints[12] = { // follow the order of detected corners of QR code
@@ -132,12 +142,20 @@ namespace whi_qrcode_pose
                         auto distortion = Camera->getIntrinsicDistortion();
                         cv::Mat distortionCoeffs(4, 1, CV_32F, distortion.data());
 
-                        cv::Mat rVec, tVec;
-                        if (cv::solvePnP(objectVec, codeCorners, cameraMatrix, distortionCoeffs, rVec, tVec))
+                        bool res = false;
                         {
-#ifndef DEBUG
-                            std::cout << "translation " << tVec << std::endl;
-                            std::cout << "rotation " << rVec << std::endl;
+                            const std::lock_guard<std::mutex> lock(mtx_);
+                            res = cv::solvePnP(objectVec, codeCorners, cameraMatrix, distortionCoeffs,
+                                rotation_vec_, translation_vec_);
+                        }
+
+                        if (res)
+                        {
+#ifdef DEBUG
+                            std::cout << "translation " << translation_vec_ << " and type " << 
+                                cv::typeToString(translation_vec_.type()) << std::endl;
+                            std::cout << "rotation " << rotation_vec_ << " and type " <<
+                                cv::typeToString(rotation_vec_.type()) << std::endl;
 #endif
                             float wrtPoints[12] = {
                                 0.0, 0.0, 0.0, // origin
@@ -147,25 +165,52 @@ namespace whi_qrcode_pose
                             };
                             cv::Mat wrtVec(4, 3, CV_32F, wrtPoints);
                             cv::Mat imgPoints, jacob;
-                            cv::projectPoints(wrtVec, rVec, tVec, cameraMatrix, distortionCoeffs, imgPoints, jacob);
+                            cv::projectPoints(wrtVec, rotation_vec_, translation_vec_, cameraMatrix, distortionCoeffs,
+                                imgPoints, jacob);
 
-                            // draw coordinate
-                            cv::Scalar color[3] = { cv::Scalar(0, 0, 255), cv::Scalar(0, 255, 0), cv::Scalar(255, 0, 0) };
-                            cv::Point2i origin(int(imgPoints.at<float>(0, 0)), int(imgPoints.at<float>(0, 1)));
-                            for (int i = 1; i < 4; ++i)
+                            if (show_image_)
                             {
-                                cv::line(*img, origin,
-                                    cv::Point2i(int(imgPoints.at<float>(i, 0)), int(imgPoints.at<float>(i, 1))),
-                                    color[i - 1], 8);
+                                // draw coordinate
+                                cv::Scalar color[3] = { cv::Scalar(0, 0, 255), cv::Scalar(0, 255, 0), cv::Scalar(255, 0, 0) };
+                                cv::Point2i origin(int(imgPoints.at<float>(0, 0)), int(imgPoints.at<float>(0, 1)));
+                                for (int i = 1; i < 4; ++i)
+                                {
+                                    cv::line(*img, origin,
+                                        cv::Point2i(int(imgPoints.at<float>(i, 0)), int(imgPoints.at<float>(i, 1))),
+                                        color[i - 1], 8);
+                                }
+                                cv::imshow("with coordinate", *img);
+                                cv::waitKey(0);
                             }
-#ifndef DEBUG
-                            cv::imshow("with coordinate", *img);
-                            cv::waitKey(0);
-#endif
                         }
                     }
                 }
             }
         };
+    }
+
+    bool QrcodePose::onServiceOffset(whi_interfaces::WhiSrvQrOffset::Request& Request,
+        whi_interfaces::WhiSrvQrOffset::Response& Response)
+    {
+        cv::Mat rotation;
+        {
+            const std::lock_guard<std::mutex> lock(mtx_);
+            Response.offset_pose.pose.position.x = translation_vec_.at<double>(0, 0);
+            Response.offset_pose.pose.position.y = translation_vec_.at<double>(0, 1);
+            Response.offset_pose.pose.position.z = translation_vec_.at<double>(0, 2);
+            cv::Rodrigues(rotation_vec_, rotation);
+        }
+
+        // convert to tf2::Matrix3x3
+        tf2::Matrix3x3 tf2Rotation(rotation.at<double>(0, 0), rotation.at<double>(0, 1), rotation.at<double>(0, 2),
+                            rotation.at<double>(1, 0), rotation.at<double>(1, 1), rotation.at<double>(1, 2),
+                            rotation.at<double>(2, 0), rotation.at<double>(2, 1), rotation.at<double>(2, 2));
+        tf2::Transform tf2Transform(tf2Rotation);
+        geometry_msgs::Pose poseMsg;
+        tf2::toMsg(tf2Transform, poseMsg);
+
+        Response.offset_pose.pose.orientation = poseMsg.orientation;
+
+        return true;
     }
 } // namespace whi_qrcode_pose
