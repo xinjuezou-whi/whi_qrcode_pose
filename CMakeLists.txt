@@ -134,6 +134,7 @@ target_link_libraries(${PROJECT_NAME}
    opencv_highgui
    opencv_imgproc
    opencv_imgcodecs
+   opencv_objdetect
    stdc++fs
 )
 

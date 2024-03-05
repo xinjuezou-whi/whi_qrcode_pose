@@ -121,8 +121,12 @@ namespace v4l2_camera
         bool open() override;
         bool start() override;
         bool stop() override;
-        sensor_msgs::Image::Ptr capture() override;
+        std::shared_ptr<cv::Mat> capture() override;
         std::string getCameraName() const override;
+        std::vector<double> getIntrinsicProjection() const override;
+        std::vector<double> getIntrinsicDistortion() const override;
+        void setIntrinsicProjection(const std::vector<double>& Projection) override;
+        void setIntrinsicDistortion(const std::vector<double>& Distortion) override;
 
     public:
         // Query properties and current state of a control

@@ -15,6 +15,8 @@ All text above must be included in any redistribution.
 #include "whi_qrcode_pose/whi_v4l_device.h"
 #include "whi_qrcode_pose/whi_images_from_path.h"
 
+#include <opencv2/opencv.hpp>
+
 namespace whi_qrcode_pose
 {
     QrcodePose::QrcodePose(std::shared_ptr<ros::NodeHandle>& NodeHandle)
@@ -55,7 +57,12 @@ namespace whi_qrcode_pose
         }
         else if (imgSouce == "path")
         {
+            std::vector<double> intrinsicProjection, intrinsicDistortion;
+            node_handle_->getParam("intrinsic_projection", intrinsicProjection);
+            node_handle_->getParam("intrinsic_distortion", intrinsicDistortion);
             camera = std::make_shared<images_from_path::ImagePathDevice>(imgPath);
+            camera->setIntrinsicProjection(intrinsicProjection);
+            camera->setIntrinsicDistortion(intrinsicDistortion);
         }
 
         streaming(camera);
@@ -93,38 +100,72 @@ namespace whi_qrcode_pose
                 while (!terminated_.load())
                 {
                     auto img = Camera->capture();
-                    if (img == nullptr)
+                    if (!img)
                     {
                         // Failed capturing image, assume it is temporarily and continue a bit later
                         std::this_thread::sleep_for(std::chrono::milliseconds(10));
                         continue;
                     }
 
-                    // if (img->encoding != output_encoding_) // TODO
-                    // {
-                    //     ROS_WARN_STREAM_ONCE(
-                    //         "Image encoding not the same as requested output, performing possibly slow conversion: " <<
-                    //         img->encoding << " => " << output_encoding_);
-                    //     img = convert(*img);
-                    // }
-                    // img = convert(img);
-                    // img->header.stamp = ros::Time::now();
-                    // img->header.frame_id = frame_id_;
-                    // pub_image_->publish(img);
-                    // auto camInfo = std::make_unique<sensor_msgs::CameraInfo>(cam_info_->getCameraInfo());
-                    // pub_info_->publish(*img, *camInfo, img->header.stamp);
+                    cv::Mat src;
+                    cv::QRCodeDetector detecter;
+
+	                cv::Mat codeCorners;
+	                if (detecter.detect(*img, codeCorners))
+                    {
+#ifndef DEBUG
+                        std::cout << "code corners " << codeCorners << std::endl;
+#endif
+                        float objectPoints[12] = { // follow the order of detected corners of QR code
+                            0.0, 0.0, 0.0, // top-left
+                            0.0, 1.0, 0.0, // top-right
+                            1.0, 1.0, 0.0, // bottom-right
+                            1.0, 0.0, 0.0  // bottom-left
+                        };
+                        cv::Mat objectVec(4, 3, CV_32F, objectPoints);
+
+                        auto projection = Camera->getIntrinsicProjection();
+                        float camVec[9] = { projection[0], 0.0 , projection[2],
+                            0.0, projection[1], projection[3],
+                            0.0, 0.0, 1.0 };
+                        cv::Mat cameraMatrix(3, 3, CV_32F, camVec);
+                        auto distortion = Camera->getIntrinsicDistortion();
+                        cv::Mat distortionCoeffs(4, 1, CV_32F, distortion.data());
+
+                        cv::Mat rVec, tVec;
+                        if (cv::solvePnP(objectVec, codeCorners, cameraMatrix, distortionCoeffs, rVec, tVec))
+                        {
+#ifndef DEBUG
+                            std::cout << "translation " << tVec << std::endl;
+                            std::cout << "rotation " << rVec << std::endl;
+#endif
+                            float wrtPoints[12] = {
+                                0.0, 0.0, 0.0, // origin
+                                1.0, 0.0, 0.0, // x
+                                0.0, 1.0, 0.0, // y
+                                0.0, 0.0, 0.1  // z
+                            };
+                            cv::Mat wrtVec(4, 3, CV_32F, wrtPoints);
+                            cv::Mat imgPoints, jacob;
+                            cv::projectPoints(wrtVec, rVec, tVec, cameraMatrix, distortionCoeffs, imgPoints, jacob);
+
+                            // draw coordinate
+                            cv::Scalar color[3] = { cv::Scalar(0, 0, 255), cv::Scalar(0, 255, 0), cv::Scalar(255, 0, 0) };
+                            cv::Point2i origin(int(imgPoints.at<float>(0, 0)), int(imgPoints.at<float>(0, 1)));
+                            for (int i = 1; i < 4; ++i)
+                            {
+                                cv::line(*img, origin,
+                                    cv::Point2i(int(imgPoints.at<float>(i, 0)), int(imgPoints.at<float>(i, 1))),
+                                    color[i - 1], 8);
+                            }
+#ifndef DEBUG
+                            cv::imshow("with coordinate", *img);
+                            cv::waitKey(0);
+#endif
+                        }
+                    }
                 }
             }
         };
     }
-
-    // sensor_msgs::Image::Ptr QrcodePose::convert(const sensor_msgs::ImageConstPtr Img) const
-    // {
-    //     auto cvImg = cv_bridge::toCvShare(Img);
-    //     auto outImg = std::make_unique<sensor_msgs::Image>();
-    //     auto cvConvertedImg = cv_bridge::cvtColor(cvImg, "bgr8");
-    //     cvConvertedImg->toImageMsg(*outImg);
-
-    //     return outImg;
-    // }
 } // namespace whi_qrcode_pose

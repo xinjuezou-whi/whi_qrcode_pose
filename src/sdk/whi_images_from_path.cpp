@@ -15,7 +15,6 @@ All text above must be included in any redistribution.
 
 #include <ros/ros.h>
 #include <sensor_msgs/image_encodings.h>
-#include <opencv2/opencv.hpp>
 
 #include <filesystem>
 
@@ -46,24 +45,51 @@ namespace images_from_path
         return true;
     }
 
-    sensor_msgs::Image::Ptr ImagePathDevice::capture()
+    std::shared_ptr<cv::Mat> ImagePathDevice::capture()
     {
-	    cv::Mat src = cv::imread(images_.front());
-	    if (src.empty())
+        static int index = 0;
+        if (index < images_.size())
         {
-		    return nullptr;
-	    }
-	    cv::imshow("src image", src);
-        cv::waitKey(1);
+            auto img = std::make_shared<cv::Mat>(cv::imread(images_[index++]));
+            if (img->empty())
+            {
+                return nullptr;
+            }
+#ifdef DEBUG
+            cv::imshow("src image", *img);
+            cv::waitKey(0);
+#endif
 
-        // Create image object
-        auto img = std::make_unique<sensor_msgs::Image>();
-
-        return nullptr;
+            return img;
+        }
+        else
+        {
+            return nullptr;
+        }
     }
 
     std::string ImagePathDevice::getCameraName() const
     {
         return path_;
+    }
+
+    std::vector<double> ImagePathDevice::getIntrinsicProjection() const
+    {
+        return intrinsic_projection_;
+    }
+
+    std::vector<double> ImagePathDevice::getIntrinsicDistortion() const
+    {
+        return intrinsic_distortion_;
+    }
+
+    void ImagePathDevice::setIntrinsicProjection(const std::vector<double>& Projection)
+    {
+        intrinsic_projection_ = Projection;
+    }
+
+    void ImagePathDevice::setIntrinsicDistortion(const std::vector<double>& Distortion)
+    {
+        intrinsic_distortion_ = Distortion;
     }
 }  // namespace images_from_path

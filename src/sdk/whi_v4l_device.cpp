@@ -15,8 +15,7 @@ All text above must be included in any redistribution.
 
 #include <ros/ros.h>
 #include <sensor_msgs/image_encodings.h>
-#include <opencv2/highgui.hpp>
-#include <opencv2/imgproc.hpp>
+#include <sensor_msgs/Image.h>
 
 #include <fcntl.h>
 #include <sys/ioctl.h>
@@ -147,7 +146,7 @@ namespace v4l2_camera
         return true;
     }
 
-    sensor_msgs::Image::Ptr V4l2CameraDevice::capture()
+    std::shared_ptr<cv::Mat> V4l2CameraDevice::capture()
     {
         v4l2_buffer buf;
         buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
@@ -223,7 +222,8 @@ namespace v4l2_camera
                 v4l2_fourcc::toString(cur_data_format_.format_) << " " << cur_data_format_.format_);
         }
 
-        return img;
+        //return img;
+        return std::make_shared<cv::Mat>();
     }
 
     std::string V4l2CameraDevice::getCameraName() const
@@ -233,6 +233,28 @@ namespace v4l2_camera
         std::replace(name.begin(), name.end(), ' ', '_');
 
         return name;
+    }
+
+    std::vector<double> V4l2CameraDevice::getIntrinsicProjection() const
+    {
+        // TODO: leave for override so far
+        return std::vector<double>();
+    }
+
+    std::vector<double> V4l2CameraDevice::getIntrinsicDistortion() const
+    {
+        // TODO: leave for override so far
+        return std::vector<double>();
+    }
+
+    void V4l2CameraDevice::setIntrinsicProjection(const std::vector<double>& Projection)
+    {
+        // TODO: leave for override so far
+    }
+
+    void V4l2CameraDevice::setIntrinsicDistortion(const std::vector<double>& Distortion)
+    {
+        // TODO: leave for override so far
     }
 
     v4l2_camera::Control V4l2CameraDevice::queryControl(uint32_t Id, bool Silent/* = false*/)

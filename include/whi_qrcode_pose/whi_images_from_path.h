@@ -33,15 +33,17 @@ namespace images_from_path
         bool open() override;
         bool start() override;
         bool stop() override;
-        sensor_msgs::Image::Ptr capture() override;
+        std::shared_ptr<cv::Mat> capture() override;
         std::string getCameraName() const override;
-
-    public:
-
-    private:
+        std::vector<double> getIntrinsicProjection() const override;
+        std::vector<double> getIntrinsicDistortion() const override;
+        void setIntrinsicProjection(const std::vector<double>& Projection) override;
+        void setIntrinsicDistortion(const std::vector<double>& Distortion) override;
 
     private:
         std::string path_;
         std::vector<std::string> images_;
+        std::vector<double> intrinsic_projection_;
+        std::vector<double> intrinsic_distortion_;
     };
 }  // namespace images_from_path

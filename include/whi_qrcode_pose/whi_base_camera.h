@@ -15,7 +15,7 @@ Changelog:
 2022-xx-xx: xxx
 ******************************************************************/
 #pragma once
-#include <sensor_msgs/Image.h>
+#include <opencv2/opencv.hpp>
 
 class WhiCamera
 {
@@ -27,8 +27,12 @@ public:
     virtual bool open() = 0;
     virtual bool start() = 0;
     virtual bool stop() = 0;
-    virtual sensor_msgs::Image::Ptr capture() = 0;
+    virtual std::shared_ptr<cv::Mat> capture() = 0;
     virtual std::string getCameraName() const = 0;
+    virtual std::vector<double> getIntrinsicProjection() const = 0;
+    virtual std::vector<double> getIntrinsicDistortion() const = 0;
+    virtual void setIntrinsicProjection(const std::vector<double>& Projection) = 0;
+    virtual void setIntrinsicDistortion(const std::vector<double>& Distortion) = 0;
 
 protected:
     bool is_opened_{ false };
