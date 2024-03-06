@@ -1,2 +1,49 @@
 # whi_qrcode_pose
-determine the QR code position and orientation
+Determine the QR code position and orientation. Advertise service for retrieving the offsets to the camera frame
+
+![qrcode](https://github.com/xinjuezou-whi/whi_qrcode_pose/assets/72239958/bdfe4f2f-de9b-4512-8ce1-144df485ca33)
+
+## Dependency
+```
+cd /<your_workspace>/src
+git clone https://github.com/xinjuezou-whi/whi_interfaces.git
+```
+
+## Advertised service
+**offset_camera**(whi_interfaces::WhiSrvQrOffset)
+
+## Image source
+Currently, three image sources are supported: USB CAM stream, the message of sensor_msgs::Image, and images stored in a local folder
+
+Refer to the parameters to specify the image source
+
+## Parameters
+```
+whi_qrcode_pose:
+  frame_id: camera
+  image_topic: image
+  camera_device: /dev/video0
+  image_path: debug_iamges
+  source: path # topic/device/path
+  loop_hz: 20 # hz
+  show_source_image: true
+  show_detected_image: true
+  service: offset_camera
+  intrinsic_projection: [385.75, 385.75, 323.12, 236.74]
+  intrinsic_distortion: [0.0, 0.0, 0.0, 0.0]
+```
+
+# Build
+```
+cd /<your_workspace>/src
+git clone https://github.com/xinjuezou-whi/whi_qrcode_pose.git
+cd ..
+catkin build whi_qrcode_pose
+source /<your_workspace>/devel/setup.bash
+```
+
+## Demo with local stored images
+For a quick demo, change the parameter "source" to "path", edit the "image_path" with your workspace like "/home/<your_workspace>/src/whi_qrcode_pose/debug_images/". And make sure parameters "show_source_image" and "show_detected_image" are both enabled, then run the following command:
+```
+roslaunch whi_qrcode_pose whi_qrcode_pose.launch
+```
