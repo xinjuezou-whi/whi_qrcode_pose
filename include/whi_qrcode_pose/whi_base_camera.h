@@ -29,11 +29,25 @@ public:
     virtual bool stop() = 0;
     virtual std::shared_ptr<cv::Mat> capture() = 0;
     virtual std::string getCameraName() const = 0;
-    virtual std::vector<double> getIntrinsicProjection() const = 0;
-    virtual std::vector<double> getIntrinsicDistortion() const = 0;
-    virtual void setIntrinsicProjection(const std::vector<double>& Projection) = 0;
-    virtual void setIntrinsicDistortion(const std::vector<double>& Distortion) = 0;
+    std::vector<double> getIntrinsicProjection() const
+    {
+        return intrinsic_projection_;
+    };
+    std::vector<double> getIntrinsicDistortion() const
+    {
+        return intrinsic_distortion_;
+    };
+    void setIntrinsicProjection(const std::vector<double>& Projection)
+    {
+        intrinsic_projection_ = Projection;
+    };
+    void setIntrinsicDistortion(const std::vector<double>& Distortion)
+    {
+        intrinsic_distortion_ = Distortion;
+    };
 
 protected:
     bool is_opened_{ false };
+    std::vector<double> intrinsic_projection_;
+    std::vector<double> intrinsic_distortion_;
 };

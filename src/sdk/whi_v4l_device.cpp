@@ -158,14 +158,6 @@ namespace v4l2_camera
             return nullptr;
         }
 
-        // Create image object
-        auto img = std::make_unique<sensor_msgs::Image>();
-
-        // Copy over buffer data
-        const auto& buffer = buffers_[buf.index];
-        img->data.resize(cur_data_format_.image_byte_size_);
-        std::copy(buffer.start_, buffer.start_ + img->data.size(), img->data.begin());
-
         // Requeue buffer to be reused for new captures
         if (-1 == xioctl(fd_, VIDIOC_QBUF, &buf))
         {
@@ -174,47 +166,31 @@ namespace v4l2_camera
         }
 
         // Fill in remaining image information
-        img->width = cur_data_format_.width_;
-        img->height = cur_data_format_.height_;
-        img->step = cur_data_format_.bytes_per_line_;
+        const auto& buffer = buffers_[buf.index];
         if (cur_data_format_.format_ == V4L2_PIX_FMT_YUYV)
         {
-            img->encoding = sensor_msgs::image_encodings::BGR8; //sensor_msgs::image_encodings::YUV422_YUY2;
-
             /// output is YUY2
-            cv::Mat yuyv(cur_data_format_.height_, cur_data_format_.width_, CV_8UC2, img->data.data());
-            cv::Mat bgr(cur_data_format_.height_, cur_data_format_.width_, CV_8UC3);
-	        cv::cvtColor(yuyv, bgr, cv::COLOR_YUV2BGR_YUYV);
-#ifdef DEBUG
-            /// separation
-            cv::Mat inY = cv::Mat(cv::Size(cur_data_format_.width_, cur_data_format_.height_), CV_8UC1, img->data.data());
-            cv::imshow("y", inY);
-            cv::Mat inV = cv::Mat(cv::Size(cur_data_format_.width_/2, cur_data_format_.height_/2), CV_8UC1,
-                img->data.data() + cur_data_format_.bytes_per_line_ * cur_data_format_.height_ / 2,
-                cur_data_format_.bytes_per_line_ / 4);
-            cv::imshow("v", inV);
-            cv::Mat inU = cv::Mat(cv::Size(cur_data_format_.width_/2, cur_data_format_.height_/2), CV_8UC1,
-                img->data.data() + cur_data_format_.bytes_per_line_ * cur_data_format_.height_ / 2 +
-                (cur_data_format_.bytes_per_line_ / 4) * (cur_data_format_.height_ / 2),
-                cur_data_format_.bytes_per_line_ / 4);
-            cv::imshow("u", inU);
-            cv::imshow("previewBGR", bgr);
-		    cv::waitKey(10);
-#endif
-            img->data.resize(bgr.cols * bgr.rows * bgr.channels());
-            std::copy(bgr.datastart, bgr.dataend, img->data.begin());
+            cv::Mat yuyv(cur_data_format_.height_, cur_data_format_.width_, CV_8UC2, buffer.start_);
+            auto bgr = std::make_shared<cv::Mat>(cur_data_format_.height_, cur_data_format_.width_, CV_8UC3);
+	        cv::cvtColor(yuyv, *bgr, cv::COLOR_YUV2BGR_YUYV);
+
+            return bgr;
         }
         else if (cur_data_format_.format_ == V4L2_PIX_FMT_UYVY)
         {
-            img->encoding = sensor_msgs::image_encodings::YUV422;
+            cv::Mat uyvy(cur_data_format_.height_, cur_data_format_.width_, CV_8UC2, buffer.start_);
+            auto bgr = std::make_shared<cv::Mat>(cur_data_format_.height_, cur_data_format_.width_, CV_8UC3);
+	        cv::cvtColor(uyvy, *bgr, cv::COLOR_YUV2BGR_UYVY);
+
+            return bgr;
         }
         else if (cur_data_format_.format_ == V4L2_PIX_FMT_GREY)
         {
-            img->encoding = sensor_msgs::image_encodings::MONO8;
+
         }
         else if (cur_data_format_.format_ == V4L2_PIX_FMT_MJPEG)
         {
-            img->encoding = sensor_msgs::image_encodings::RGB8;
+
         }
         else
         {
@@ -222,8 +198,7 @@ namespace v4l2_camera
                 v4l2_fourcc::toString(cur_data_format_.format_) << " " << cur_data_format_.format_);
         }
 
-        //return img;
-        return std::make_shared<cv::Mat>();
+        return nullptr;
     }
 
     std::string V4l2CameraDevice::getCameraName() const
@@ -233,28 +208,6 @@ namespace v4l2_camera
         std::replace(name.begin(), name.end(), ' ', '_');
 
         return name;
-    }
-
-    std::vector<double> V4l2CameraDevice::getIntrinsicProjection() const
-    {
-        // TODO: leave for override so far
-        return std::vector<double>();
-    }
-
-    std::vector<double> V4l2CameraDevice::getIntrinsicDistortion() const
-    {
-        // TODO: leave for override so far
-        return std::vector<double>();
-    }
-
-    void V4l2CameraDevice::setIntrinsicProjection(const std::vector<double>& Projection)
-    {
-        // TODO: leave for override so far
-    }
-
-    void V4l2CameraDevice::setIntrinsicDistortion(const std::vector<double>& Distortion)
-    {
-        // TODO: leave for override so far
     }
 
     v4l2_camera::Control V4l2CameraDevice::queryControl(uint32_t Id, bool Silent/* = false*/)

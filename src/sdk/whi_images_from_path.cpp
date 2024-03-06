@@ -55,10 +55,6 @@ namespace images_from_path
             {
                 return nullptr;
             }
-#ifdef DEBUG
-            cv::imshow("src image", *img);
-            cv::waitKey(0);
-#endif
 
             return img;
         }
@@ -71,25 +67,5 @@ namespace images_from_path
     std::string ImagePathDevice::getCameraName() const
     {
         return path_;
-    }
-
-    std::vector<double> ImagePathDevice::getIntrinsicProjection() const
-    {
-        return intrinsic_projection_;
-    }
-
-    std::vector<double> ImagePathDevice::getIntrinsicDistortion() const
-    {
-        return intrinsic_distortion_;
-    }
-
-    void ImagePathDevice::setIntrinsicProjection(const std::vector<double>& Projection)
-    {
-        intrinsic_projection_ = Projection;
-    }
-
-    void ImagePathDevice::setIntrinsicDistortion(const std::vector<double>& Distortion)
-    {
-        intrinsic_distortion_ = Distortion;
     }
 }  // namespace images_from_path

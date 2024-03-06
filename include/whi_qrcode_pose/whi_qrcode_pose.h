@@ -45,7 +45,8 @@ namespace whi_qrcode_pose
         std::unique_ptr<ros::Timer> non_realtime_loop_{ nullptr };
         ros::Duration elapsed_time_;
         double loop_hz_{ 10.0 };
-        bool show_image_{ false };
+        bool show_source_image_{ false };
+        bool show_detected_image_{ false };
         std::thread th_streaming_;
         std::atomic<bool> terminated_{ false };
         std::string frame_id_{ "camera" };

@@ -49,7 +49,8 @@ namespace whi_qrcode_pose
         node_handle_->param("image_path", imgPath, std::string(""));
         std::string imgSouce;
         node_handle_->param("source", imgSouce, std::string("topic")); // topic, device, path
-        node_handle_->param("show_image", show_image_, false);
+        node_handle_->param("show_source_image", show_source_image_, false);
+        node_handle_->param("show_detected_image", show_detected_image_, false);
 
         /// camera
         std::shared_ptr<WhiCamera> camera;
@@ -60,13 +61,20 @@ namespace whi_qrcode_pose
         else if (imgSouce == "device")
         {
             camera = std::make_shared<v4l2_camera::V4l2CameraDevice>(camDevice);
-        }
-        else if (imgSouce == "path")
-        {
+
             std::vector<double> intrinsicProjection, intrinsicDistortion;
             node_handle_->getParam("intrinsic_projection", intrinsicProjection);
             node_handle_->getParam("intrinsic_distortion", intrinsicDistortion);
+            camera->setIntrinsicProjection(intrinsicProjection);
+            camera->setIntrinsicDistortion(intrinsicDistortion);
+        }
+        else if (imgSouce == "path")
+        {
             camera = std::make_shared<images_from_path::ImagePathDevice>(imgPath);
+
+            std::vector<double> intrinsicProjection, intrinsicDistortion;
+            node_handle_->getParam("intrinsic_projection", intrinsicProjection);
+            node_handle_->getParam("intrinsic_distortion", intrinsicDistortion);
             camera->setIntrinsicProjection(intrinsicProjection);
             camera->setIntrinsicDistortion(intrinsicDistortion);
         }
@@ -116,6 +124,11 @@ namespace whi_qrcode_pose
                         std::this_thread::sleep_for(std::chrono::milliseconds(10));
                         continue;
                     }
+                    if (show_source_image_)
+                    {
+                        cv::imshow("source image", *img);
+                        cv::waitKey(1);
+                    }
 
                     cv::Mat src;
                     cv::QRCodeDetector detecter;
@@ -123,7 +136,7 @@ namespace whi_qrcode_pose
 	                cv::Mat codeCorners;
 	                if (detecter.detect(*img, codeCorners))
                     {
-#ifdef DEBUG
+#ifndef DEBUG
                         std::cout << "code corners " << codeCorners << std::endl;
 #endif
                         float objectPoints[12] = { // follow the order of detected corners of QR code
@@ -168,7 +181,7 @@ namespace whi_qrcode_pose
                             cv::projectPoints(wrtVec, rotation_vec_, translation_vec_, cameraMatrix, distortionCoeffs,
                                 imgPoints, jacob);
 
-                            if (show_image_)
+                            if (show_detected_image_)
                             {
                                 // draw coordinate
                                 cv::Scalar color[3] = { cv::Scalar(0, 0, 255), cv::Scalar(0, 255, 0), cv::Scalar(255, 0, 0) };
@@ -179,8 +192,11 @@ namespace whi_qrcode_pose
                                         cv::Point2i(int(imgPoints.at<float>(i, 0)), int(imgPoints.at<float>(i, 1))),
                                         color[i - 1], 8);
                                 }
+
                                 cv::imshow("with coordinate", *img);
-                                cv::waitKey(0);
+                                images_from_path::ImagePathDevice* dev =
+                                    dynamic_cast<images_from_path::ImagePathDevice*>(Camera.get());
+                                cv::waitKey(dev == nullptr ? 1 : 0);
                             }
                         }
                     }
