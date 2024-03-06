@@ -8,5 +8,5 @@ whi_qrcode_pose:
   show_source_image: true
   show_detected_image: true
   service: offset_camera
-  intrinsic_projection: [385.75, 385.75, 323.12, 236.74] #[969.751, 969.751, 977.493, 522.116]
+  intrinsic_projection: [385.75, 385.75, 323.12, 236.74] #[969.751, 969.751, 977.493, 522.116] # focal length x, y, and optical center x, y
   intrinsic_distortion: [0.0, 0.0, 0.0, 0.0]
