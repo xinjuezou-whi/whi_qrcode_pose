@@ -14,8 +14,6 @@ All text above must be included in any redistribution.
 #include "whi_qrcode_pose/whi_v4l_device.h"
 
 #include <ros/ros.h>
-#include <sensor_msgs/image_encodings.h>
-#include <sensor_msgs/Image.h>
 
 #include <fcntl.h>
 #include <sys/ioctl.h>
