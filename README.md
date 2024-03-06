@@ -3,6 +3,15 @@ Determine the QR code position and orientation. Advertise service for retrieving
 
 ![qrcode](https://github.com/xinjuezou-whi/whi_qrcode_pose/assets/72239958/bdfe4f2f-de9b-4512-8ce1-144df485ca33)
 
+## Camera intrinsics
+The accuracy of the QR code pose is mainly affected by the camera's intrinsics. Follow the [OpenCV's calibration guidance](https://docs.opencv.org/4.x/dc/dbb/tutorial_py_calibration.html) to refer to the fundamental logic, or there are lots of [great tools](https://github.com/natowi/CameraCalibTools?tab=readme-ov-file) that can do the job
+
+Once you get your camera's intrinsics, edit the "config.yaml" to record them:
+```
+intrinsic_projection: [385.75, 385.75, 323.12, 236.74] # focal length x, y, and optical center x, y
+intrinsic_distortion: [0.0, 0.0, 0.0, 0.0]
+```
+
 ## Dependency
 ```
 cd /<your_workspace>/src
