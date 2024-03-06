@@ -48,12 +48,12 @@ public:
     class EventPack
     {
     public:
-        EventPack(EventQueue<T>::EventFunc Func, const std::string Name = std::string("")) : name_(Name), func_(Func) {};
+        EventPack(EventFunc Func, const std::string Name = std::string("")) : name_(Name), func_(Func) {};
         ~EventPack() {};
 
     public:
         std::string name_;
-        EventQueue<T>::EventFunc func_;
+        EventFunc func_;
     };
 
 public:
@@ -61,7 +61,7 @@ public:
         : blocking_(Blocking), state_(STATE_READY), ref_count_(0) {};
     ~EventQueue() { this->stop(false); };
 
-    void produce(EventQueue<T>::EventFunc Event, const std::string Name = std::string(""))
+    void produce(EventFunc Event, const std::string Name = std::string(""))
     {
         std::unique_lock<std::mutex> lock(mtx_);
         assert(STATE_READY == state_);
@@ -69,7 +69,7 @@ public:
         cv_.notify_one();
     };
 
-    EventQueue<T>::EventFunc consume()
+    EventFunc consume()
     {
         std::unique_lock<std::mutex> lock(mtx_);
         if (blocking_)
@@ -77,7 +77,7 @@ public:
             cv_.wait(lock, [=]() { return STATE_READY != state_ || !queue_.empty(); });
             if (!queue_.empty())
             {
-                EventQueue<T>::EventFunc event(queue_.front().func_);
+                EventFunc event(queue_.front().func_);
                 queue_.pop_front();
                 return event;
             }
@@ -90,7 +90,7 @@ public:
         {
             if (!queue_.empty())
             {
-                EventQueue<T>::EventFunc event(queue_.front().func_);
+                EventFunc event(queue_.front().func_);
                 queue_.pop_front();
                 return event;
             }
@@ -101,7 +101,7 @@ public:
         }
     };
 
-    EventQueue<T>::EventFunc consume(const std::string& Name)
+    EventFunc consume(const std::string& Name)
     {
         std::unique_lock<std::mutex> lock(mtx_);
         if (blocking_)
@@ -109,13 +109,13 @@ public:
             cv_.wait(lock, [=]() { return STATE_READY != state_ || !queue_.empty(); });
             if (!queue_.empty())
             {
-                typename std::list<EventQueue<T>::EventPack>::const_iterator found = std::find_if(queue_.begin(), queue_.end(), [=](const auto& Obj)
+                typename std::list<EventPack>::const_iterator found = std::find_if(queue_.begin(), queue_.end(), [=](const auto& Obj)
                 {
                     return Obj.name_ == Name;
                 });
                 if (found != queue_.end())
                 {
-                    EventQueue<T>::EventFunc event(found->func_);
+                    EventFunc event(found->func_);
                     queue_.erase(found);
                     return event;
                 }
@@ -129,13 +129,13 @@ public:
         {
             if (!queue_.empty())
             {
-                typename std::list<EventQueue<T>::EventPack>::const_iterator found = std::find_if(queue_.begin(), queue_.end(), [=](const auto& Obj)
+                typename std::list<EventPack>::const_iterator found = std::find_if(queue_.begin(), queue_.end(), [=](const auto& Obj)
                 {
                     return Obj.name_ == Name;
                 });
                 if (found != queue_.end())
                 {
-                    EventQueue<T>::EventFunc event(found->func_);
+                    EventFunc event(found->func_);
                     queue_.erase(found);
                     return event;
                 }
@@ -189,7 +189,7 @@ protected:
     bool blocking_{ false };
     std::mutex mtx_;
     std::condition_variable cv_;
-    std::list<EventQueue<T>::EventPack> queue_;
+    std::list<EventPack> queue_;
     State state_;
     std::atomic_int ref_count_;
 };
