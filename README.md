@@ -33,7 +33,7 @@ whi_qrcode_pose:
   intrinsic_distortion: [0.0, 0.0, 0.0, 0.0]
 ```
 
-# Build
+## Build
 ```
 cd /<your_workspace>/src
 git clone https://github.com/xinjuezou-whi/whi_qrcode_pose.git
