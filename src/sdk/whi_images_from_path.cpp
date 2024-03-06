@@ -5,16 +5,15 @@ Features:
 - images in folder
 - xxx
 
-Written by Xinjue Zou, xinjue.zou@outlook.com
+Written by Xinjue Zou, xinjue.zou.whi@gmail.com
 
-GNU General Public License, check LICENSE for more information.
+Apache License Version 2.0, check LICENSE for more information.
 All text above must be included in any redistribution.
 
 ******************************************************************/
 #include "whi_qrcode_pose/whi_images_from_path.h"
 
 #include <ros/ros.h>
-#include <sensor_msgs/image_encodings.h>
 
 #include <filesystem>
 

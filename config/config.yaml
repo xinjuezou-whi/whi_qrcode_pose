@@ -1,12 +1,12 @@
 whi_qrcode_pose:
   frame_id: camera
-  image_topic: image
+  image_topic: /whi_3dobject_tracking/color_view
   camera_device: /dev/video0
-  image_path: /home/whi/catkin_workspace/src/whi_qrcode_pose/debug_images/
+  image_path: image
   source: path # topic/device/path
   loop_hz: 20 # hz
   show_source_image: true
   show_detected_image: true
   service: offset_request
-  intrinsic_projection: [385.75, 385.75, 323.12, 236.74]
+  intrinsic_projection: [385.75, 385.75, 323.12, 236.74] #[969.751, 969.751, 977.493, 522.116]
   intrinsic_distortion: [0.0, 0.0, 0.0, 0.0]

@@ -5,14 +5,14 @@ Features:
 - images in folder
 - xxx
 
-Written by Xinjue Zou, xinjue.zou@outlook.com
+Written by Xinjue Zou, xinjue.zou.whi@gmail.com
 
-GNU General Public License, check LICENSE for more information.
+Apache License Version 2.0, check LICENSE for more information.
 All text above must be included in any redistribution.
 
 Changelog:
-2023-07-15: Initial version
-2022-xx-xx: xxx
+2024-03-04: Initial version
+2024-xx-xx: xxx
 ******************************************************************/
 #pragma once
 #include "whi_base_camera.h"
