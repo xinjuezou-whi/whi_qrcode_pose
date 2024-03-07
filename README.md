@@ -19,7 +19,9 @@ git clone https://github.com/xinjuezou-whi/whi_interfaces.git
 ```
 
 ## Advertised service
-**offset_camera**(whi_interfaces::WhiSrvQrOffset)
+**qrcode**(whi_interfaces::WhiSrvQrcode)
+
+Empty request with response of the offset(geometry_msgs/PoseStamped) to camera frame and the encoded contents of QR code
 
 ## Image source
 Currently, three image sources are supported: USB CAM stream, the message of sensor_msgs::Image, and images stored in a local folder
@@ -32,12 +34,12 @@ whi_qrcode_pose:
   frame_id: camera
   image_topic: image
   camera_device: /dev/video0
-  image_path: debug_iamges
+  image_path: debug_images
   source: path # topic/device/path
   loop_hz: 20 # hz
   show_source_image: true
   show_detected_image: true
-  service: offset_camera
+  service: qrcode
   intrinsic_projection: [385.75, 385.75, 323.12, 236.74]
   intrinsic_distortion: [0.0, 0.0, 0.0, 0.0]
 ```
