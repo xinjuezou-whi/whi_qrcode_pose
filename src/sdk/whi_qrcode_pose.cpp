@@ -82,7 +82,7 @@ namespace whi_qrcode_pose
         std::string service;
         node_handle_->param("service", service, std::string("offset_request"));
         service_ = std::make_unique<ros::ServiceServer>(
-            node_handle_->advertiseService(service, &QrcodePose::onServiceOffset, this));
+            node_handle_->advertiseService(service, &QrcodePose::onServiceQrcode, this));
 
         // spinner
         node_handle_->param("loop_hz", loop_hz_, 10.0);
@@ -133,7 +133,7 @@ namespace whi_qrcode_pose
 	                cv::Mat codeCorners;
 	                if (detecter.detect(*img, codeCorners))
                     {
-#ifdef DEBUG
+#ifndef DEBUG
                         std::cout << "code corners " << codeCorners << std::endl;
 #endif
                         float objectPoints[12] = { // follow the order of detected corners of QR code
@@ -155,6 +155,7 @@ namespace whi_qrcode_pose
                         bool res = false;
                         {
                             const std::lock_guard<std::mutex> lock(mtx_);
+                            codes_ = detecter.decode(*img, codeCorners);
                             res = cv::solvePnP(objectVec, codeCorners, cameraMatrix, distortionCoeffs,
                                 rotation_vec_, translation_vec_);
                         }
@@ -202,14 +203,15 @@ namespace whi_qrcode_pose
         };
     }
 
-    bool QrcodePose::onServiceOffset(whi_interfaces::WhiSrvQrOffset::Request& Request,
-        whi_interfaces::WhiSrvQrOffset::Response& Response)
+    bool QrcodePose::onServiceQrcode(whi_interfaces::WhiSrvQrcode::Request& Request,
+        whi_interfaces::WhiSrvQrcode::Response& Response)
     {
         if (!translation_vec_.empty() && !rotation_vec_.empty())
         {
             cv::Mat rotation;
             {
                 const std::lock_guard<std::mutex> lock(mtx_);
+                Response.code = codes_;
                 Response.offset_pose.pose.position.x = translation_vec_.at<double>(0, 0);
                 Response.offset_pose.pose.position.y = translation_vec_.at<double>(0, 1);
                 Response.offset_pose.pose.position.z = translation_vec_.at<double>(0, 2);

@@ -16,7 +16,7 @@ Changelog:
 ******************************************************************/
 #pragma once
 #include "whi_base_camera.h"
-#include "whi_interfaces/WhiSrvQrOffset.h"
+#include "whi_interfaces/WhiSrvQrcode.h"
 
 #include <ros/ros.h>
 #include <sensor_msgs/Image.h>
@@ -37,8 +37,8 @@ namespace whi_qrcode_pose
         void init();
         void update(const ros::TimerEvent & Event);
         void streaming(std::shared_ptr<WhiCamera> Camera);
-        bool onServiceOffset(whi_interfaces::WhiSrvQrOffset::Request& Request,
-            whi_interfaces::WhiSrvQrOffset::Response& Response);
+        bool onServiceQrcode(whi_interfaces::WhiSrvQrcode::Request& Request,
+            whi_interfaces::WhiSrvQrcode::Response& Response);
 
     protected:
         std::shared_ptr<ros::NodeHandle> node_handle_{ nullptr };
@@ -52,6 +52,7 @@ namespace whi_qrcode_pose
         std::unique_ptr<ros::ServiceServer> service_{ nullptr };
         cv::Mat rotation_vec_;
         cv::Mat translation_vec_;
+        std::string codes_;
         std::mutex mtx_;
 	};
 } // namespace whi_qrcode_pose
