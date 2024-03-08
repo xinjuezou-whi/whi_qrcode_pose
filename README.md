@@ -1,5 +1,5 @@
 # whi_qrcode_pose
-Determine the QR code position and orientation. Advertise service for retrieving the offsets to the camera frame
+Determine the QR code position and orientation. Advertise service for retrieving the encoded info and the offsets to the camera frame
 
 ![qrcode](https://github.com/xinjuezou-whi/whi_qrcode_pose/assets/72239958/bdfe4f2f-de9b-4512-8ce1-144df485ca33)
 
