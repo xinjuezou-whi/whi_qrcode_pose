@@ -129,6 +129,8 @@ namespace whi_qrcode_pose
 
                     cv::Mat src;
                     cv::QRCodeDetector detecter;
+                                            cv::imshow("source image", *img);
+                        cv::waitKey(1);
 
 	                cv::Mat codeCorners;
 	                if (detecter.detect(*img, codeCorners))
@@ -160,7 +162,7 @@ namespace whi_qrcode_pose
                                 rotation_vec_, translation_vec_);
                         }
 
-                        if (res)
+                        if (res && show_detected_image_)
                         {
 #ifdef DEBUG
                             std::cout << "translation " << translation_vec_ << " and type " << 
@@ -168,6 +170,7 @@ namespace whi_qrcode_pose
                             std::cout << "rotation " << rotation_vec_ << " and type " <<
                                 cv::typeToString(rotation_vec_.type()) << std::endl;
 #endif
+                            // project to 2D frame
                             float wrtPoints[12] = {
                                 0.0, 0.0, 0.0, // origin
                                 1.0, 0.0, 0.0, // x
@@ -179,23 +182,20 @@ namespace whi_qrcode_pose
                             cv::projectPoints(wrtVec, rotation_vec_, translation_vec_, cameraMatrix, distortionCoeffs,
                                 imgPoints, jacob);
 
-                            if (show_detected_image_)
+                            // draw coordinate in 2D frame
+                            cv::Scalar color[3] = { cv::Scalar(0, 0, 255), cv::Scalar(0, 255, 0), cv::Scalar(255, 0, 0) };
+                            cv::Point2i origin(int(imgPoints.at<float>(0, 0)), int(imgPoints.at<float>(0, 1)));
+                            for (int i = 1; i < 4; ++i)
                             {
-                                // draw coordinate
-                                cv::Scalar color[3] = { cv::Scalar(0, 0, 255), cv::Scalar(0, 255, 0), cv::Scalar(255, 0, 0) };
-                                cv::Point2i origin(int(imgPoints.at<float>(0, 0)), int(imgPoints.at<float>(0, 1)));
-                                for (int i = 1; i < 4; ++i)
-                                {
-                                    cv::line(*img, origin,
-                                        cv::Point2i(int(imgPoints.at<float>(i, 0)), int(imgPoints.at<float>(i, 1))),
-                                        color[i - 1], 8);
-                                }
-
-                                cv::imshow("with coordinate", *img);
-                                images_from_path::ImagePathDevice* dev =
-                                    dynamic_cast<images_from_path::ImagePathDevice*>(Camera.get());
-                                cv::waitKey(dev == nullptr ? 1 : 0);
+                                cv::line(*img, origin,
+                                    cv::Point2i(int(imgPoints.at<float>(i, 0)), int(imgPoints.at<float>(i, 1))),
+                                    color[i - 1], 8);
                             }
+
+                            cv::imshow("with coordinate", *img);
+                            images_from_path::ImagePathDevice* dev =
+                                dynamic_cast<images_from_path::ImagePathDevice*>(Camera.get());
+                            cv::waitKey(dev == nullptr ? 1 : 0);
                         }
                     }
                 }
