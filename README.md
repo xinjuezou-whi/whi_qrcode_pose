@@ -21,7 +21,7 @@ git clone https://github.com/xinjuezou-whi/whi_interfaces.git
 ## Advertised service
 **qrcode**(whi_interfaces::WhiSrvQrcode)
 
-Empty request with response of the offset(geometry_msgs/PoseStamped) to camera frame and the encoded contents of QR code
+The argument: timeout in the request specifies the maximum duration to wait for the response from the server. The response from the server is filled with the offset(geometry_msgs/PoseStamped) to the camera frame and the encoded contents of the QR code
 
 ## Image source
 Currently, three image sources are supported: USB CAM stream, the message of sensor_msgs::Image, and images stored in a local folder
