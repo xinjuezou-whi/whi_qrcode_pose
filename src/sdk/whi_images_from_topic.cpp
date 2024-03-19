@@ -37,7 +37,7 @@ namespace images_from_topic
     {
         ROS_INFO("Starting camera");
 
-        queue_images_ = std::make_unique<EventQueue<cv::Mat>>(false);
+        queue_images_ = std::make_unique<EventQueue<cv::Mat>>(5, false);
 
         return true;
     }

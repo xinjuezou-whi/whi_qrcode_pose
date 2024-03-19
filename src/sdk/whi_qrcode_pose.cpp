@@ -129,13 +129,13 @@ namespace whi_qrcode_pose
 
                     cv::Mat src;
                     cv::QRCodeDetector detecter;
-                                            cv::imshow("source image", *img);
-                        cv::waitKey(1);
+                    cv::imshow("source image", *img);
+                    cv::waitKey(1);
 
 	                cv::Mat codeCorners;
 	                if (detecter.detect(*img, codeCorners))
                     {
-#ifndef DEBUG
+#ifdef DEBUG
                         std::cout << "code corners " << codeCorners << std::endl;
 #endif
                         float objectPoints[12] = { // follow the order of detected corners of QR code
@@ -164,7 +164,7 @@ namespace whi_qrcode_pose
 
                         if (res && show_detected_image_)
                         {
-#ifdef DEBUG
+#ifndef DEBUG
                             std::cout << "translation " << translation_vec_ << " and type " << 
                                 cv::typeToString(translation_vec_.type()) << std::endl;
                             std::cout << "rotation " << rotation_vec_ << " and type " <<

@@ -1,12 +1,12 @@
 whi_qrcode_pose:
   frame_id: camera
-  image_topic: image
+  image_topic: /whi_3dobject_tracking/color_view
   camera_device: /dev/video0
   image_path: debug_images
-  source: path # topic/device/path
+  source: topic # topic/device/path
   loop_hz: 20 # hz
   show_source_image: true
   show_detected_image: true
-  service: qrcode
-  intrinsic_projection: [385.75, 385.75, 323.12, 236.74] #[969.751, 969.751, 977.493, 522.116] # focal length x, y, and optical center x, y
+  service: qrcode_pose
+  intrinsic_projection: [606.537, 606.476, 320.836, 254.938] # focal length x, y, and optical center x, y
   intrinsic_distortion: [0.0, 0.0, 0.0, 0.0]

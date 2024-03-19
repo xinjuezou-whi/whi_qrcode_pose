@@ -34,7 +34,7 @@ class EventQueue
 public:
     static const std::string& VERSION()
     {
-        return "00.07.1";
+        return "00.08";
     }
 
 public:
@@ -57,14 +57,18 @@ public:
     };
 
 public:
-    EventQueue(bool Blocking = false)
-        : blocking_(Blocking), state_(STATE_READY), ref_count_(0) {};
+    EventQueue(int MaxSize = 50, bool Blocking = false)
+        : max_size_(MaxSize), blocking_(Blocking), state_(STATE_READY), ref_count_(0) {};
     ~EventQueue() { this->stop(false); };
 
     void produce(EventFunc Event, const std::string Name = std::string(""))
     {
         std::unique_lock<std::mutex> lock(mtx_);
         assert(STATE_READY == state_);
+        if (queue_.size() == max_size_)
+        {
+            queue_.pop_front();
+        }
         queue_.emplace_back(Event, Name);
         cv_.notify_one();
     };
@@ -186,6 +190,7 @@ public:
     enum State { STATE_READY, STATE_STOPPED };
 
 protected:
+    int max_size_{ -1 };
     bool blocking_{ false };
     std::mutex mtx_;
     std::condition_variable cv_;
