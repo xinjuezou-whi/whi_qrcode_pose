@@ -8,5 +8,5 @@ whi_qrcode_pose:
   show_source_image: true
   show_detected_image: true
   service: qrcode_pose
-  intrinsic_projection: [606.537, 606.476, 320.836, 254.938] # focal length x, y, and optical center x, y
+  intrinsic_projection: [386.522, 386.522, 324.621, 235.764] # focal length x, y, and optical center x, y
   intrinsic_distortion: [0.0, 0.0, 0.0, 0.0]
