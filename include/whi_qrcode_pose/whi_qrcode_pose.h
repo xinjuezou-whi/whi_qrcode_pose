@@ -24,6 +24,7 @@ Changelog:
 #include <memory>
 #include <thread>
 #include <mutex>
+#include <condition_variable>
 
 namespace whi_qrcode_pose
 {
@@ -54,5 +55,6 @@ namespace whi_qrcode_pose
         cv::Mat translation_vec_;
         std::string codes_;
         std::mutex mtx_;
+        std::condition_variable cv_;
 	};
 } // namespace whi_qrcode_pose

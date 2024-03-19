@@ -161,6 +161,7 @@ namespace whi_qrcode_pose
                             res = cv::solvePnP(objectVec, codeCorners, cameraMatrix, distortionCoeffs,
                                 rotation_vec_, translation_vec_);
                         }
+                        cv_.notify_all();
 
                         if (res && show_detected_image_)
                         {
@@ -206,6 +207,14 @@ namespace whi_qrcode_pose
     bool QrcodePose::onServiceQrcode(whi_interfaces::WhiSrvQrcode::Request& Request,
         whi_interfaces::WhiSrvQrcode::Response& Response)
     {
+        {
+            std::unique_lock<std::mutex> lock(mtx_);
+            if (cv_.wait_for(lock, std::chrono::seconds(Request.timeout)) == std::cv_status::timeout)
+            {
+                return false;
+            }
+        }
+
         if (!translation_vec_.empty() && !rotation_vec_.empty())
         {
             cv::Mat rotation;
