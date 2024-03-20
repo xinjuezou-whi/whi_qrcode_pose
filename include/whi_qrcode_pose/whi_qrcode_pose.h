@@ -51,6 +51,7 @@ namespace whi_qrcode_pose
         std::thread th_streaming_;
         std::atomic<bool> terminated_{ false };
         std::unique_ptr<ros::ServiceServer> service_{ nullptr };
+        double frame_unit_scale_{ 0.001 };
         cv::Mat rotation_vec_;
         cv::Mat translation_vec_;
         std::string codes_;

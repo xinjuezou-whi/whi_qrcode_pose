@@ -51,6 +51,9 @@ namespace whi_qrcode_pose
         node_handle_->param("source", imgSouce, std::string("topic")); // topic, device, path
         node_handle_->param("show_source_image", show_source_image_, false);
         node_handle_->param("show_detected_image", show_detected_image_, false);
+        std::string frameUnit;
+        node_handle_->param("frame_unit", frameUnit, std::string("meter")); // meter and millimeter
+        frame_unit_scale_ = frameUnit == "millimeter" ? 1.0 : 0.001;
 
         /// camera
         std::shared_ptr<WhiCamera> camera;
@@ -139,10 +142,10 @@ namespace whi_qrcode_pose
                         std::cout << "code corners " << codeCorners << std::endl;
 #endif
                         float objectPoints[12] = { // follow the order of detected corners of QR code
-                            0.0, 0.0, 0.0, // top-left
-                            0.0, 1.0, 0.0, // top-right
-                            1.0, 1.0, 0.0, // bottom-right
-                            1.0, 0.0, 0.0  // bottom-left
+                            1.0, 0.0, 0.0, // top-left
+                            0.0, 0.0, 0.0, // top-right
+                            0.0, 1.0, 0.0, // bottom-right
+                            1.0, 1.0, 0.0  // bottom-left
                         };
                         cv::Mat objectVec(4, 3, CV_32F, objectPoints);
 
@@ -221,9 +224,9 @@ namespace whi_qrcode_pose
             {
                 const std::lock_guard<std::mutex> lock(mtx_);
                 Response.code = codes_;
-                Response.offset_pose.pose.position.x = translation_vec_.at<double>(0, 0);
-                Response.offset_pose.pose.position.y = translation_vec_.at<double>(0, 1);
-                Response.offset_pose.pose.position.z = translation_vec_.at<double>(0, 2);
+                Response.offset_pose.pose.position.x = translation_vec_.at<double>(0, 0) * frame_unit_scale_;
+                Response.offset_pose.pose.position.y = translation_vec_.at<double>(0, 1) * frame_unit_scale_;
+                Response.offset_pose.pose.position.z = translation_vec_.at<double>(0, 2) * frame_unit_scale_;
                 cv::Rodrigues(rotation_vec_, rotation);
             }
 
