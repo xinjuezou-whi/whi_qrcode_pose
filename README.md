@@ -39,7 +39,8 @@ whi_qrcode_pose:
   loop_hz: 20 # hz
   show_source_image: true
   show_detected_image: true
-  service: qrcode
+  service: qrcode_pose
+  frame_unit: meter # millimeter
   intrinsic_projection: [385.75, 385.75, 323.12, 236.74]
   intrinsic_distortion: [0.0, 0.0, 0.0, 0.0]
 ```
