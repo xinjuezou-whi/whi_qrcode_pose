@@ -130,11 +130,7 @@ namespace whi_qrcode_pose
                         cv::waitKey(1);
                     }
 
-                    cv::Mat src;
                     cv::QRCodeDetector detecter;
-                    cv::imshow("source image", *img);
-                    cv::waitKey(1);
-
 	                cv::Mat codeCorners;
 	                if (detecter.detect(*img, codeCorners))
                     {
