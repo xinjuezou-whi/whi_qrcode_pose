@@ -51,6 +51,7 @@ namespace whi_qrcode_pose
         node_handle_->param("source", imgSouce, std::string("topic")); // topic, device, path
         node_handle_->param("show_source_image", show_source_image_, false);
         node_handle_->param("show_detected_image", show_detected_image_, false);
+        node_handle_->param("activated_default", activated_, false);
         std::string frameUnit;
         node_handle_->param("frame_unit", frameUnit, std::string("meter")); // meter and millimeter
         frame_unit_scale_ = frameUnit == "millimeter" ? 1.0 : 0.001;
@@ -162,11 +163,18 @@ namespace whi_qrcode_pose
                             bool res = false;
                             {
                                 const std::lock_guard<std::mutex> lock(mtx_);
-                                codes_ = detecter.decode(*img, codeCorners);
-                                res = cv::solvePnP(objectVec, codeCorners, cameraMatrix, distortionCoeffs,
-                                    rotation_vec_, translation_vec_);
+                                try
+                                {
+                                    codes_ = detecter.decode(*img, codeCorners);
+                                    res = cv::solvePnP(objectVec, codeCorners, cameraMatrix, distortionCoeffs,
+                                        rotation_vec_, translation_vec_);
+                                    cv_.notify_all();
+                                }
+                                catch (const std::exception& e)
+                                {
+                                    ROS_WARN_STREAM("invalid QR code area");
+                                }
                             }
-                            cv_.notify_all();
 
                             if (res && show_detected_image_)
                             {
