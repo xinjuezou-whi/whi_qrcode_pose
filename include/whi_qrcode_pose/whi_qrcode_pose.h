@@ -20,6 +20,7 @@ Changelog:
 
 #include <ros/ros.h>
 #include <sensor_msgs/Image.h>
+#include <std_srvs/SetBool.h>
 
 #include <memory>
 #include <thread>
@@ -40,6 +41,8 @@ namespace whi_qrcode_pose
         void streaming(std::shared_ptr<WhiCamera> Camera);
         bool onServiceQrcode(whi_interfaces::WhiSrvQrcode::Request& Request,
             whi_interfaces::WhiSrvQrcode::Response& Response);
+        bool onServiceActivate(std_srvs::SetBool::Request& Request,
+            std_srvs::SetBool::Response& Response);
 
     protected:
         std::shared_ptr<ros::NodeHandle> node_handle_{ nullptr };
@@ -51,11 +54,13 @@ namespace whi_qrcode_pose
         std::thread th_streaming_;
         std::atomic<bool> terminated_{ false };
         std::unique_ptr<ros::ServiceServer> service_{ nullptr };
+        std::unique_ptr<ros::ServiceServer> service_activate_{ nullptr };
         double frame_unit_scale_{ 0.001 };
         cv::Mat rotation_vec_;
         cv::Mat translation_vec_;
         std::string codes_;
         std::mutex mtx_;
         std::condition_variable cv_;
+        bool activated_{ false };
 	};
 } // namespace whi_qrcode_pose

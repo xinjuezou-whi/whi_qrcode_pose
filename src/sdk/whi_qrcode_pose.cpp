@@ -86,6 +86,10 @@ namespace whi_qrcode_pose
         node_handle_->param("service", service, std::string("offset_request"));
         service_ = std::make_unique<ros::ServiceServer>(
             node_handle_->advertiseService(service, &QrcodePose::onServiceQrcode, this));
+        std::string serviceActivate;
+        node_handle_->param("activate_service", serviceActivate, std::string("qrcode_activate"));
+        service_activate_ = std::make_unique<ros::ServiceServer>(
+            node_handle_->advertiseService(serviceActivate, &QrcodePose::onServiceActivate, this));
 
         // spinner
         node_handle_->param("loop_hz", loop_hz_, 10.0);
@@ -130,72 +134,75 @@ namespace whi_qrcode_pose
                         cv::waitKey(1);
                     }
 
-                    cv::QRCodeDetector detecter;
-	                cv::Mat codeCorners;
-	                if (detecter.detect(*img, codeCorners))
+                    if (activated_)
                     {
-#ifdef DEBUG
-                        std::cout << "code corners " << codeCorners << std::endl;
-#endif
-                        float objectPoints[12] = { // follow the order of detected corners of QR code
-                            1.0, 0.0, 0.0, // top-left
-                            0.0, 0.0, 0.0, // top-right
-                            0.0, 1.0, 0.0, // bottom-right
-                            1.0, 1.0, 0.0  // bottom-left
-                        };
-                        cv::Mat objectVec(4, 3, CV_32F, objectPoints);
-
-                        auto projection = Camera->getIntrinsicProjection();
-                        float camVec[9] = { projection[0], 0.0 , projection[2],
-                            0.0, projection[1], projection[3],
-                            0.0, 0.0, 1.0 };
-                        cv::Mat cameraMatrix(3, 3, CV_32F, camVec);
-                        auto distortion = Camera->getIntrinsicDistortion();
-                        cv::Mat distortionCoeffs(4, 1, CV_32F, distortion.data());
-
-                        bool res = false;
+                        cv::QRCodeDetector detecter;
+                        cv::Mat codeCorners;
+                        if (detecter.detect(*img, codeCorners))
                         {
-                            const std::lock_guard<std::mutex> lock(mtx_);
-                            codes_ = detecter.decode(*img, codeCorners);
-                            res = cv::solvePnP(objectVec, codeCorners, cameraMatrix, distortionCoeffs,
-                                rotation_vec_, translation_vec_);
-                        }
-                        cv_.notify_all();
-
-                        if (res && show_detected_image_)
-                        {
-#ifndef DEBUG
-                            std::cout << "translation " << translation_vec_ << " and type " << 
-                                cv::typeToString(translation_vec_.type()) << std::endl;
-                            std::cout << "rotation " << rotation_vec_ << " and type " <<
-                                cv::typeToString(rotation_vec_.type()) << std::endl;
-#endif
-                            // project to 2D frame
-                            float wrtPoints[12] = {
-                                0.0, 0.0, 0.0, // origin
-                                1.0, 0.0, 0.0, // x
-                                0.0, 1.0, 0.0, // y
-                                0.0, 0.0, 1.0  // z
+    #ifdef DEBUG
+                            std::cout << "code corners " << codeCorners << std::endl;
+    #endif
+                            float objectPoints[12] = { // follow the order of detected corners of QR code
+                                1.0, 0.0, 0.0, // top-left
+                                0.0, 0.0, 0.0, // top-right
+                                0.0, 1.0, 0.0, // bottom-right
+                                1.0, 1.0, 0.0  // bottom-left
                             };
-                            cv::Mat wrtVec(4, 3, CV_32F, wrtPoints);
-                            cv::Mat imgPoints, jacob;
-                            cv::projectPoints(wrtVec, rotation_vec_, translation_vec_, cameraMatrix, distortionCoeffs,
-                                imgPoints, jacob);
+                            cv::Mat objectVec(4, 3, CV_32F, objectPoints);
 
-                            // draw coordinate in 2D frame
-                            cv::Scalar color[3] = { cv::Scalar(0, 0, 255), cv::Scalar(0, 255, 0), cv::Scalar(255, 0, 0) };
-                            cv::Point2i origin(int(imgPoints.at<float>(0, 0)), int(imgPoints.at<float>(0, 1)));
-                            for (int i = 1; i < 4; ++i)
+                            auto projection = Camera->getIntrinsicProjection();
+                            float camVec[9] = { projection[0], 0.0 , projection[2],
+                                0.0, projection[1], projection[3],
+                                0.0, 0.0, 1.0 };
+                            cv::Mat cameraMatrix(3, 3, CV_32F, camVec);
+                            auto distortion = Camera->getIntrinsicDistortion();
+                            cv::Mat distortionCoeffs(4, 1, CV_32F, distortion.data());
+
+                            bool res = false;
                             {
-                                cv::line(*img, origin,
-                                    cv::Point2i(int(imgPoints.at<float>(i, 0)), int(imgPoints.at<float>(i, 1))),
-                                    color[i - 1], 8);
+                                const std::lock_guard<std::mutex> lock(mtx_);
+                                codes_ = detecter.decode(*img, codeCorners);
+                                res = cv::solvePnP(objectVec, codeCorners, cameraMatrix, distortionCoeffs,
+                                    rotation_vec_, translation_vec_);
                             }
+                            cv_.notify_all();
 
-                            cv::imshow("with coordinate", *img);
-                            images_from_path::ImagePathDevice* dev =
-                                dynamic_cast<images_from_path::ImagePathDevice*>(Camera.get());
-                            cv::waitKey(dev == nullptr ? 1 : 0);
+                            if (res && show_detected_image_)
+                            {
+    #ifndef DEBUG
+                                std::cout << "translation " << translation_vec_ << " and type " << 
+                                    cv::typeToString(translation_vec_.type()) << std::endl;
+                                std::cout << "rotation " << rotation_vec_ << " and type " <<
+                                    cv::typeToString(rotation_vec_.type()) << std::endl;
+    #endif
+                                // project to 2D frame
+                                float wrtPoints[12] = {
+                                    0.0, 0.0, 0.0, // origin
+                                    1.0, 0.0, 0.0, // x
+                                    0.0, 1.0, 0.0, // y
+                                    0.0, 0.0, 1.0  // z
+                                };
+                                cv::Mat wrtVec(4, 3, CV_32F, wrtPoints);
+                                cv::Mat imgPoints, jacob;
+                                cv::projectPoints(wrtVec, rotation_vec_, translation_vec_, cameraMatrix, distortionCoeffs,
+                                    imgPoints, jacob);
+
+                                // draw coordinate in 2D frame
+                                cv::Scalar color[3] = { cv::Scalar(0, 0, 255), cv::Scalar(0, 255, 0), cv::Scalar(255, 0, 0) };
+                                cv::Point2i origin(int(imgPoints.at<float>(0, 0)), int(imgPoints.at<float>(0, 1)));
+                                for (int i = 1; i < 4; ++i)
+                                {
+                                    cv::line(*img, origin,
+                                        cv::Point2i(int(imgPoints.at<float>(i, 0)), int(imgPoints.at<float>(i, 1))),
+                                        color[i - 1], 8);
+                                }
+
+                                cv::imshow("with coordinate", *img);
+                                images_from_path::ImagePathDevice* dev =
+                                    dynamic_cast<images_from_path::ImagePathDevice*>(Camera.get());
+                                cv::waitKey(dev == nullptr ? 1 : 0);
+                            }
                         }
                     }
                 }
@@ -242,5 +249,14 @@ namespace whi_qrcode_pose
         {
             return false;
         }
+    }
+
+    bool QrcodePose::onServiceActivate(std_srvs::SetBool::Request& Request,
+            std_srvs::SetBool::Response& Response)
+    {
+        activated_ = Request.data;
+        Response.success = true;
+
+        return Response.success;
     }
 } // namespace whi_qrcode_pose
