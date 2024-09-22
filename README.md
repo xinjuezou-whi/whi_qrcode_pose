@@ -17,6 +17,16 @@ intrinsic_distortion: [0.0, 0.0, 0.0, 0.0]
 ```
 
 ## Dependency
+### gcc9
+```
+sudo apt install gcc-9 g++-9
+sudo update-alternatives --remove-all gcc
+sudo update-alternatives --remove-all g++
+sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-9 9
+sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-9 9
+```
+
+### whi_interfaces
 ```
 cd /<your_workspace>/src
 git clone https://github.com/xinjuezou-whi/whi_interfaces.git
