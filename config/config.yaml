@@ -1,14 +1,12 @@
 whi_qrcode_pose:
   frame_id: camera
-  image_topic: /camera/color/image_raw
+  image_topic: /whi_pgnd_inspection/color_view
   camera_device: /dev/video0
   image_path: debug_images
   source: topic # topic/device/path
   loop_hz: 20 # hz
   show_source_image: false
-  show_detected_image: false
-  service: qrcode_pose
-  activate_service: qrcode_activate
+  show_detected_image: true
   activated_default: false
   frame_unit: meter # millimeter
   intrinsic_projection: [386.522, 386.522, 324.621, 235.764] # focal length x, y, and optical center x, y

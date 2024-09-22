@@ -83,14 +83,10 @@ namespace whi_qrcode_pose
         streaming(camera);
 
         // service
-        std::string service;
-        node_handle_->param("service", service, std::string("offset_request"));
         service_ = std::make_unique<ros::ServiceServer>(
-            node_handle_->advertiseService(service, &QrcodePose::onServiceQrcode, this));
-        std::string serviceActivate;
-        node_handle_->param("activate_service", serviceActivate, std::string("qrcode_activate"));
+            node_handle_->advertiseService("qrcode_pose", &QrcodePose::onServiceQrcode, this));
         service_activate_ = std::make_unique<ros::ServiceServer>(
-            node_handle_->advertiseService(serviceActivate, &QrcodePose::onServiceActivate, this));
+            node_handle_->advertiseService("qrcode_activate", &QrcodePose::onServiceActivate, this));
 
         // spinner
         node_handle_->param("loop_hz", loop_hz_, 10.0);
