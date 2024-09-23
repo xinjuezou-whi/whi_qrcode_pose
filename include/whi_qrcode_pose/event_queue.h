@@ -65,11 +65,11 @@ public:
     {
         std::unique_lock<std::mutex> lock(mtx_);
         assert(STATE_READY == state_);
-        if (queue_.size() == max_size_)
+        queue_.emplace_back(Event, Name);
+        while (queue_.size() > max_size_)
         {
             queue_.pop_front();
         }
-        queue_.emplace_back(Event, Name);
         cv_.notify_one();
     };
 

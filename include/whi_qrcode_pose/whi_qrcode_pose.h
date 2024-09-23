@@ -56,11 +56,12 @@ namespace whi_qrcode_pose
         std::unique_ptr<ros::ServiceServer> service_{ nullptr };
         std::unique_ptr<ros::ServiceServer> service_activate_{ nullptr };
         double frame_unit_scale_{ 0.001 };
-        cv::Mat rotation_vec_;
-        cv::Mat translation_vec_;
+        std::vector<cv::Mat> rotations_;
+        std::vector<cv::Mat> translations_;
         std::string codes_;
         std::mutex mtx_;
         std::condition_variable cv_;
         bool activated_{ false };
+        int request_count_{ 10 };
 	};
 } // namespace whi_qrcode_pose
