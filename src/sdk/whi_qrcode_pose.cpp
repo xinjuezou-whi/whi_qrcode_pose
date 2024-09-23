@@ -168,6 +168,9 @@ namespace whi_qrcode_pose
                                 if (cv::solvePnP(objectVec, codeCorners, cameraMatrix, distortionCoeffs,
                                     rotationVec, translationVec))
                                 {
+                                    cv::solvePnPRefineLM(objectVec, codeCorners, cameraMatrix, distortionCoeffs,
+                                        rotationVec, translationVec);
+
                                     // project to 2D frame
                                     float wrtPoints[12] = {
                                         0.0, 0.0, 0.0, // origin
@@ -186,9 +189,9 @@ namespace whi_qrcode_pose
                                     cv::Point cornerTopL(codeCorners.at<float>(0, 0), codeCorners.at<float>(0, 1));
                                     cv::Point cornerTopR(codeCorners.at<float>(0, 2), codeCorners.at<float>(0, 3));
                                     cv::Point cornerBottomR(codeCorners.at<float>(0, 4), codeCorners.at<float>(0, 5));
-                                    if (fabs(cv::norm(topL - cornerTopL)) < 5.0 &&
-                                        fabs(cv::norm(topR - cornerTopR)) < 5.0 &&
-                                        fabs(cv::norm(bottomR - cornerBottomR)) < 5.0)
+                                    if (fabs(cv::norm(topL - cornerTopL)) < 3.0 &&
+                                        fabs(cv::norm(topR - cornerTopR)) < 3.0 &&
+                                        fabs(cv::norm(bottomR - cornerBottomR)) < 3.0)
                                     {
 #ifdef DEBUG
                                         std::cout << "translation " << translationVec << " and type " << 
@@ -230,7 +233,7 @@ namespace whi_qrcode_pose
                             }
                             catch (const std::exception& e)
                             {
-                                ROS_WARN_STREAM("invalid QR code area");
+                                ROS_WARN_STREAM("failed to solvePnp problem with: " << e.what());
                             }
                         }
                     }
@@ -287,6 +290,9 @@ namespace whi_qrcode_pose
             vecAvg[2] /= rotations_.size();
             rotations_.clear();
             cv::Mat rotationAvg(vecAvg);
+#ifndef DEBUG
+            std::cout << "QR average rotation:" << rotationAvg << std::endl;
+#endif
 
             cv::Mat rotation;
             cv::Rodrigues(rotationAvg, rotation);

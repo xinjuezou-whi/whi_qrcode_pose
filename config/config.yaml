@@ -6,8 +6,8 @@ whi_qrcode_pose:
   source: topic # topic/device/path
   loop_hz: 20 # hz
   show_source_image: false
-  show_detected_image: true
+  show_detected_image: false
   activated_default: false
   frame_unit: meter # millimeter
-  intrinsic_projection: [386.522, 386.522, 324.621, 235.764] # focal length x, y, and optical center x, y
+  intrinsic_projection: [386.157, 386.157, 323.237, 239.697] # focal length x, y, and optical center x, y
   intrinsic_distortion: [0.0, 0.0, 0.0, 0.0]
