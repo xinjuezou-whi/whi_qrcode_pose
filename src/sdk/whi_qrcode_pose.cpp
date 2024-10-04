@@ -181,15 +181,15 @@ namespace whi_qrcode_pose
                         if (code_type_ == codeType[TYPE_QR])
                         {
                             cv::QRCodeDetector detecter;
-                            cv::Mat codeCorners;
-                            if (detecter.detect(*img, codeCorners))
+                            cv::Mat corners;
+                            if (detecter.detect(*img, corners))
                             {
 #ifdef DEBUG
-                                std::cout << "code corners " << codeCorners << std::endl;
-                                cv::circle(*img, cv::Point2i(int(codeCorners.at<float>(0, 0)), int(codeCorners.at<float>(0, 1))), 5, cv::Scalar(0, 0, 255), 10);
-                                cv::circle(*img, cv::Point2i(int(codeCorners.at<float>(0, 2)), int(codeCorners.at<float>(0, 3))), 5, cv::Scalar(0, 255, 0), 10);
-                                cv::circle(*img, cv::Point2i(int(codeCorners.at<float>(0, 4)), int(codeCorners.at<float>(0, 5))), 5, cv::Scalar(255, 0, 0), 10);
-                                cv::circle(*img, cv::Point2i(int(codeCorners.at<float>(0, 6)), int(codeCorners.at<float>(0, 7))), 5, cv::Scalar(255, 255, 0), 10);
+                                std::cout << "code corners " << corners << std::endl;
+                                cv::circle(*img, cv::Point2i(int(corners.at<float>(0, 0)), int(corners.at<float>(0, 1))), 5, cv::Scalar(0, 0, 255), 10);
+                                cv::circle(*img, cv::Point2i(int(corners.at<float>(0, 2)), int(corners.at<float>(0, 3))), 5, cv::Scalar(0, 255, 0), 10);
+                                cv::circle(*img, cv::Point2i(int(corners.at<float>(0, 4)), int(corners.at<float>(0, 5))), 5, cv::Scalar(255, 0, 0), 10);
+                                cv::circle(*img, cv::Point2i(int(corners.at<float>(0, 6)), int(corners.at<float>(0, 7))), 5, cv::Scalar(255, 255, 0), 10);
 #endif
                                 float objectPoints[12] = { // follow the order of detected corners of QR code
                                     1.0, 0.0, 0.0, // top-left
@@ -199,15 +199,14 @@ namespace whi_qrcode_pose
                                 };
                                 cv::Mat objectVec(4, 3, CV_32F, objectPoints);
 
-                                // bool res = false;
                                 cv::Mat rvec, tvec;
                                 try
                                 {
-                                    codes_ = detecter.decode(*img, codeCorners);
-                                    if (cv::solvePnP(objectVec, codeCorners, cameraMatrix, distortionCoeffs,
+                                    codes_ = detecter.decode(*img, corners);
+                                    if (cv::solvePnP(objectVec, corners, cameraMatrix, distortionCoeffs,
                                         rvec, tvec))
                                     {
-                                        cv::solvePnPRefineLM(objectVec, codeCorners, cameraMatrix, distortionCoeffs,
+                                        cv::solvePnPRefineLM(objectVec, corners, cameraMatrix, distortionCoeffs,
                                             rvec, tvec);
 
                                         // project to 2D frame
@@ -225,9 +224,9 @@ namespace whi_qrcode_pose
                                         cv::Point topL(imgPoints.at<float>(1, 0), imgPoints.at<float>(1, 1));
                                         cv::Point topR(imgPoints.at<float>(0, 0), imgPoints.at<float>(0, 1));
                                         cv::Point bottomR(imgPoints.at<float>(2, 0), imgPoints.at<float>(2, 1));
-                                        cv::Point cornerTopL(codeCorners.at<float>(0, 0), codeCorners.at<float>(0, 1));
-                                        cv::Point cornerTopR(codeCorners.at<float>(0, 2), codeCorners.at<float>(0, 3));
-                                        cv::Point cornerBottomR(codeCorners.at<float>(0, 4), codeCorners.at<float>(0, 5));
+                                        cv::Point cornerTopL(corners.at<float>(0, 0), corners.at<float>(0, 1));
+                                        cv::Point cornerTopR(corners.at<float>(0, 2), corners.at<float>(0, 3));
+                                        cv::Point cornerBottomR(corners.at<float>(0, 4), corners.at<float>(0, 5));
                                         if (fabs(cv::norm(topL - cornerTopL)) < 3.0 &&
                                             fabs(cv::norm(topR - cornerTopR)) < 3.0 &&
                                             fabs(cv::norm(bottomR - cornerBottomR)) < 3.0)
@@ -282,8 +281,8 @@ namespace whi_qrcode_pose
                             cv::aruco::Dictionary dictionary = cv::aruco::getPredefinedDictionary(dictionary_);
                             cv::aruco::ArucoDetector detector(dictionary, detectorParams);
                             std::vector<int> markerIds;
-                            std::vector<std::vector<cv::Point2f>> corners, rejectedCandidates;
-                            detector.detectMarkers(*img, corners, markerIds, rejectedCandidates);
+                            std::vector<std::vector<cv::Point2f>> cornersList, rejectedCandidates;
+                            detector.detectMarkers(*img, cornersList, markerIds, rejectedCandidates);
 
                             if (!markerIds.empty())
                             {
@@ -299,12 +298,45 @@ namespace whi_qrcode_pose
                                 // calculate pose for each marker
                                 for (size_t i = 0; i < markers; ++i)
                                 {
-                                    cv::solvePnP(objPoints, corners.at(i), cameraMatrix, distortionCoeffs,
-                                        rvecs.at(i), tvecs.at(i));
+                                    if (cv::solvePnP(objPoints, cornersList.at(i), cameraMatrix, distortionCoeffs,
+                                        rvecs.at(i), tvecs.at(i)))
+                                    {
+                                        cv::solvePnPRefineLM(objPoints, cornersList.at(i), cameraMatrix, distortionCoeffs,
+                                            rvecs.at(i), tvecs.at(i));
+
+                                        if (request_count_ > 0 && i == 0)
+                                        {
+                                            cv::Mat matRot(1, 3, CV_32F);
+                                            for (int j = 0; j < 3; ++j)
+                                            {
+                                                matRot.at <double>(0, j) = rvecs.at(i)[j];
+                                            }
+                                            rotations_.push_back(matRot);
+                                            cv::Mat matTrans(1, 3, CV_32F);
+                                            for (int j = 0; j < 3; ++j)
+                                            {
+                                                matTrans.at <double>(0, j) = tvecs.at(i)[j];
+                                            }
+                                            translations_.push_back(matTrans);
+#ifndef DEBUG
+                                            std::cout << "rvecs 0:" << rvecs.at(i) << std::endl;
+                                            std::cout << "matRot:" << rotations_.back() << std::endl;
+                                            std::cout << "tvecs 0:" << tvecs.at(i) << std::endl;
+                                            std::cout << "matTrans:" << translations_.back() << std::endl;
+#endif
+
+                                            if (rotations_.size() >= request_count_)
+                                            {
+                                                request_count_ = 0;
+                                                cv_.notify_all();
+                                            }
+                                        }
+                                    }
                                 }
 
                                 if (show_detected_image_)
                                 {
+                                    cv::aruco::drawDetectedMarkers(*img, cornersList, markerIds);
                                     for (size_t i = 0; i < markerIds.size(); ++i)
                                     {
                                         cv::drawFrameAxes(*img, cameraMatrix, distortionCoeffs, rvecs[i], tvecs[i],

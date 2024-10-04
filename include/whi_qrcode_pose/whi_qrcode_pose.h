@@ -68,7 +68,7 @@ namespace whi_qrcode_pose
         std::mutex mtx_;
         std::condition_variable cv_;
         bool activated_{ false };
-        int request_count_{ 10 };
+        int request_count_{ 0 };
         std::string code_type_{ codeType[TYPE_QR] };
         int dictionary_{ cv::aruco::DICT_4X4_50 };
         double marker_side_length_{ 0.165 };
