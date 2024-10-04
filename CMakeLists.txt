@@ -14,6 +14,7 @@ find_package(catkin REQUIRED COMPONENTS
 )
 
 ## System dependencies are found with CMake's conventions
+find_package(OpenCV 4.8.0 REQUIRED COMPONENTS)
 # find_package(Boost REQUIRED COMPONENTS system)
 
 
@@ -118,7 +119,7 @@ catkin_package(
 include_directories(
   include
   ${catkin_INCLUDE_DIRS}
-  /usr/include/opencv4/
+  /usr/local/include/opencv4/
 )
 
 ## Declare a C++ library

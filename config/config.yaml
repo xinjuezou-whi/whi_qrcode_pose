@@ -11,3 +11,8 @@ whi_qrcode_pose:
   frame_unit: meter # millimeter
   intrinsic_projection: [386.157, 386.157, 323.237, 239.697] # focal length x, y, and optical center x, y
   intrinsic_distortion: [0.0, 0.0, 0.0, 0.0]
+  type: qr # qr or aruco
+  # ArUco
+  aruco:
+    dictionary: DICT_4X4_50
+    marker_side_length: 0.165 # in meter

@@ -27,10 +27,16 @@ Changelog:
 #include <mutex>
 #include <condition_variable>
 
+#include <opencv2/objdetect/aruco_detector.hpp>
+
 namespace whi_qrcode_pose
 {
 	class QrcodePose
 	{
+	public:
+		enum CodeType { TYPE_QR = 0, TYPE_ARUCO, TYPE_SUM };
+		static constexpr const char* codeType[TYPE_SUM] = { "qr", "aruco" };
+
     public:
         QrcodePose(std::shared_ptr<ros::NodeHandle>& NodeHandle);
         ~QrcodePose();
@@ -63,5 +69,8 @@ namespace whi_qrcode_pose
         std::condition_variable cv_;
         bool activated_{ false };
         int request_count_{ 10 };
+        std::string code_type_{ codeType[TYPE_QR] };
+        int dictionary_{ cv::aruco::DICT_4X4_50 };
+        double marker_side_length_{ 0.165 };
 	};
 } // namespace whi_qrcode_pose

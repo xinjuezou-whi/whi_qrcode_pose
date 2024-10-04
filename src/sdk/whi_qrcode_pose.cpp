@@ -79,6 +79,43 @@ namespace whi_qrcode_pose
             camera->setIntrinsicProjection(intrinsicProjection);
             camera->setIntrinsicDistortion(intrinsicDistortion);
         }
+        // code type
+        if (node_handle_->param("type", code_type_, std::string(codeType[TYPE_QR])))
+        {
+            std::transform(code_type_.begin(), code_type_.end(), code_type_.begin(),
+                [](unsigned char c) { return std::tolower(c); });
+        }
+        if (code_type_ == codeType[TYPE_ARUCO])
+        {
+            std::string dict;
+            node_handle_->param("aruco/dictionary", dict, std::string("DICT_4X4_50"));
+            std::map<std::string, int> mapDict
+            {
+				{"DICT_4X4_50", cv::aruco::DICT_4X4_50},
+                {"DICT_4X4_100", cv::aruco::DICT_4X4_100},
+                {"DICT_4X4_250", cv::aruco::DICT_4X4_250},
+                {"DICT_4X4_1000", cv::aruco::DICT_4X4_1000},
+				{"DICT_5X5_50", cv::aruco::DICT_5X5_50},
+                {"DICT_5X5_100", cv::aruco::DICT_5X5_100},
+                {"DICT_5X5_250", cv::aruco::DICT_5X5_250},
+                {"DICT_5X5_1000", cv::aruco::DICT_5X5_1000},
+				{"DICT_6X6_50", cv::aruco::DICT_6X6_50},
+                {"DICT_6X6_100", cv::aruco::DICT_6X6_100},
+                {"DICT_6X6_250", cv::aruco::DICT_6X6_250},
+                {"DICT_6X6_1000", cv::aruco::DICT_6X6_1000},
+				{"DICT_7X7_50", cv::aruco::DICT_7X7_50},
+                {"DICT_7X7_100", cv::aruco::DICT_7X7_100},
+                {"DICT_7X7_250", cv::aruco::DICT_7X7_250},
+                {"DICT_7X7_1000", cv::aruco::DICT_7X7_1000}
+			};
+            dictionary_ = cv::aruco::DICT_4X4_50;
+            if (auto search = mapDict.find(dict); search != mapDict.end())
+            {
+                dictionary_ = mapDict[dict];
+            }
+
+            node_handle_->param("aruco/marker_side_length", marker_side_length_, 0.165);
+        }
 
         streaming(camera);
 
@@ -133,107 +170,152 @@ namespace whi_qrcode_pose
 
                     if (activated_)
                     {
-                        cv::QRCodeDetector detecter;
-                        cv::Mat codeCorners;
-                        if (detecter.detect(*img, codeCorners))
+                        auto projection = Camera->getIntrinsicProjection();
+                        float camVec[9] = { projection[0], 0.0 , projection[2],
+                            0.0, projection[1], projection[3],
+                            0.0, 0.0, 1.0 };
+                        cv::Mat cameraMatrix(3, 3, CV_32F, camVec);
+                        auto distortion = Camera->getIntrinsicDistortion();
+                        cv::Mat distortionCoeffs(4, 1, CV_32F, distortion.data());
+
+                        if (code_type_ == codeType[TYPE_QR])
                         {
-#ifdef DEBUG
-                            std::cout << "code corners " << codeCorners << std::endl;
-                            cv::circle(*img, cv::Point2i(int(codeCorners.at<float>(0, 0)), int(codeCorners.at<float>(0, 1))), 5, cv::Scalar(0, 0, 255), 10);
-                            cv::circle(*img, cv::Point2i(int(codeCorners.at<float>(0, 2)), int(codeCorners.at<float>(0, 3))), 5, cv::Scalar(0, 255, 0), 10);
-                            cv::circle(*img, cv::Point2i(int(codeCorners.at<float>(0, 4)), int(codeCorners.at<float>(0, 5))), 5, cv::Scalar(255, 0, 0), 10);
-                            cv::circle(*img, cv::Point2i(int(codeCorners.at<float>(0, 6)), int(codeCorners.at<float>(0, 7))), 5, cv::Scalar(255, 255, 0), 10);
-#endif
-                            float objectPoints[12] = { // follow the order of detected corners of QR code
-                                1.0, 0.0, 0.0, // top-left
-                                0.0, 0.0, 0.0, // top-right
-                                0.0, 1.0, 0.0, // bottom-right
-                                1.0, 1.0, 0.0  // bottom-left
-                            };
-                            cv::Mat objectVec(4, 3, CV_32F, objectPoints);
-
-                            auto projection = Camera->getIntrinsicProjection();
-                            float camVec[9] = { projection[0], 0.0 , projection[2],
-                                0.0, projection[1], projection[3],
-                                0.0, 0.0, 1.0 };
-                            cv::Mat cameraMatrix(3, 3, CV_32F, camVec);
-                            auto distortion = Camera->getIntrinsicDistortion();
-                            cv::Mat distortionCoeffs(4, 1, CV_32F, distortion.data());
-
-                            // bool res = false;
-                            cv::Mat rotationVec, translationVec;
-                            try
+                            cv::QRCodeDetector detecter;
+                            cv::Mat codeCorners;
+                            if (detecter.detect(*img, codeCorners))
                             {
-                                codes_ = detecter.decode(*img, codeCorners);
-                                if (cv::solvePnP(objectVec, codeCorners, cameraMatrix, distortionCoeffs,
-                                    rotationVec, translationVec))
-                                {
-                                    cv::solvePnPRefineLM(objectVec, codeCorners, cameraMatrix, distortionCoeffs,
-                                        rotationVec, translationVec);
-
-                                    // project to 2D frame
-                                    float wrtPoints[12] = {
-                                        0.0, 0.0, 0.0, // origin
-                                        1.0, 0.0, 0.0, // x
-                                        0.0, 1.0, 0.0, // y
-                                        0.0, 0.0, 1.0  // z
-                                    };
-                                    cv::Mat wrtVec(4, 3, CV_32F, wrtPoints);
-                                    cv::Mat imgPoints, jacob;
-                                    cv::projectPoints(wrtVec, rotationVec, translationVec, cameraMatrix, distortionCoeffs,
-                                        imgPoints, jacob);
-                                    
-                                    cv::Point topL(imgPoints.at<float>(1, 0), imgPoints.at<float>(1, 1));
-                                    cv::Point topR(imgPoints.at<float>(0, 0), imgPoints.at<float>(0, 1));
-                                    cv::Point bottomR(imgPoints.at<float>(2, 0), imgPoints.at<float>(2, 1));
-                                    cv::Point cornerTopL(codeCorners.at<float>(0, 0), codeCorners.at<float>(0, 1));
-                                    cv::Point cornerTopR(codeCorners.at<float>(0, 2), codeCorners.at<float>(0, 3));
-                                    cv::Point cornerBottomR(codeCorners.at<float>(0, 4), codeCorners.at<float>(0, 5));
-                                    if (fabs(cv::norm(topL - cornerTopL)) < 3.0 &&
-                                        fabs(cv::norm(topR - cornerTopR)) < 3.0 &&
-                                        fabs(cv::norm(bottomR - cornerBottomR)) < 3.0)
-                                    {
 #ifdef DEBUG
-                                        std::cout << "translation " << translationVec << " and type " << 
-                                            cv::typeToString(translationVec.type()) << std::endl;
-                                        std::cout << "rotation " << rotationVec << " and type " <<
-                                            cv::typeToString(rotationVec.type()) << std::endl;
+                                std::cout << "code corners " << codeCorners << std::endl;
+                                cv::circle(*img, cv::Point2i(int(codeCorners.at<float>(0, 0)), int(codeCorners.at<float>(0, 1))), 5, cv::Scalar(0, 0, 255), 10);
+                                cv::circle(*img, cv::Point2i(int(codeCorners.at<float>(0, 2)), int(codeCorners.at<float>(0, 3))), 5, cv::Scalar(0, 255, 0), 10);
+                                cv::circle(*img, cv::Point2i(int(codeCorners.at<float>(0, 4)), int(codeCorners.at<float>(0, 5))), 5, cv::Scalar(255, 0, 0), 10);
+                                cv::circle(*img, cv::Point2i(int(codeCorners.at<float>(0, 6)), int(codeCorners.at<float>(0, 7))), 5, cv::Scalar(255, 255, 0), 10);
+#endif
+                                float objectPoints[12] = { // follow the order of detected corners of QR code
+                                    1.0, 0.0, 0.0, // top-left
+                                    0.0, 0.0, 0.0, // top-right
+                                    0.0, 1.0, 0.0, // bottom-right
+                                    1.0, 1.0, 0.0  // bottom-left
+                                };
+                                cv::Mat objectVec(4, 3, CV_32F, objectPoints);
+
+                                // bool res = false;
+                                cv::Mat rvec, tvec;
+                                try
+                                {
+                                    codes_ = detecter.decode(*img, codeCorners);
+                                    if (cv::solvePnP(objectVec, codeCorners, cameraMatrix, distortionCoeffs,
+                                        rvec, tvec))
+                                    {
+                                        cv::solvePnPRefineLM(objectVec, codeCorners, cameraMatrix, distortionCoeffs,
+                                            rvec, tvec);
+
+                                        // project to 2D frame
+                                        float wrtPoints[12] = {
+                                            0.0, 0.0, 0.0, // origin
+                                            1.0, 0.0, 0.0, // x
+                                            0.0, 1.0, 0.0, // y
+                                            0.0, 0.0, 1.0  // z
+                                        };
+                                        cv::Mat wrtVec(4, 3, CV_32F, wrtPoints);
+                                        cv::Mat imgPoints, jacob;
+                                        cv::projectPoints(wrtVec, rvec, tvec, cameraMatrix, distortionCoeffs,
+                                            imgPoints, jacob);
+                                        
+                                        cv::Point topL(imgPoints.at<float>(1, 0), imgPoints.at<float>(1, 1));
+                                        cv::Point topR(imgPoints.at<float>(0, 0), imgPoints.at<float>(0, 1));
+                                        cv::Point bottomR(imgPoints.at<float>(2, 0), imgPoints.at<float>(2, 1));
+                                        cv::Point cornerTopL(codeCorners.at<float>(0, 0), codeCorners.at<float>(0, 1));
+                                        cv::Point cornerTopR(codeCorners.at<float>(0, 2), codeCorners.at<float>(0, 3));
+                                        cv::Point cornerBottomR(codeCorners.at<float>(0, 4), codeCorners.at<float>(0, 5));
+                                        if (fabs(cv::norm(topL - cornerTopL)) < 3.0 &&
+                                            fabs(cv::norm(topR - cornerTopR)) < 3.0 &&
+                                            fabs(cv::norm(bottomR - cornerBottomR)) < 3.0)
+                                        {
+#ifdef DEBUG
+                                            std::cout << "translation " << tvec << " and type " << 
+                                                cv::typeToString(tvec.type()) << std::endl;
+                                            std::cout << "rotation " << rvec << " and type " <<
+                                                cv::typeToString(rvec.type()) << std::endl;
 #endif
 
-                                        if (request_count_ > 0)
-                                        {
-                                            rotations_.push_back(rotationVec);
-                                            translations_.push_back(translationVec);
-                                            if (rotations_.size() >= request_count_)
+                                            if (request_count_ > 0)
                                             {
-                                                request_count_ = 0;
-                                                cv_.notify_all();
-                                            }
-                                        }
-
-                                        if (show_detected_image_)
-                                        {
-                                            // draw coordinate in 2D frame
-                                            cv::Scalar color[3] = { cv::Scalar(0, 0, 255), cv::Scalar(0, 255, 0), cv::Scalar(255, 0, 0) };
-                                            cv::Point2i origin(int(imgPoints.at<float>(0, 0)), int(imgPoints.at<float>(0, 1)));
-                                            for (int i = 1; i < 4; ++i)
-                                            {
-                                                cv::line(*img, origin,
-                                                    cv::Point2i(int(imgPoints.at<float>(i, 0)), int(imgPoints.at<float>(i, 1))),
-                                                    color[i - 1], 8);
+                                                rotations_.push_back(rvec);
+                                                translations_.push_back(tvec);
+                                                if (rotations_.size() >= request_count_)
+                                                {
+                                                    request_count_ = 0;
+                                                    cv_.notify_all();
+                                                }
                                             }
 
-                                            cv::imshow("with coordinate", *img);
-                                            images_from_path::ImagePathDevice* dev =
-                                                dynamic_cast<images_from_path::ImagePathDevice*>(Camera.get());
-                                            cv::waitKey(dev == nullptr ? 1 : 0);
+                                            if (show_detected_image_)
+                                            {
+                                                // draw coordinate in 2D frame
+                                                cv::Scalar color[3] = { cv::Scalar(0, 0, 255), cv::Scalar(0, 255, 0), cv::Scalar(255, 0, 0) };
+                                                cv::Point2i origin(int(imgPoints.at<float>(0, 0)), int(imgPoints.at<float>(0, 1)));
+                                                for (int i = 1; i < 4; ++i)
+                                                {
+                                                    cv::line(*img, origin,
+                                                        cv::Point2i(int(imgPoints.at<float>(i, 0)), int(imgPoints.at<float>(i, 1))),
+                                                        color[i - 1], 8);
+                                                }
+
+                                                cv::imshow("with coordinate", *img);
+                                                images_from_path::ImagePathDevice* dev =
+                                                    dynamic_cast<images_from_path::ImagePathDevice*>(Camera.get());
+                                                cv::waitKey(dev == nullptr ? 1 : 0);
+                                            }
                                         }
                                     }
                                 }
+                                catch (const std::exception& e)
+                                {
+                                    ROS_WARN_STREAM("failed to solvePnp problem with: " << e.what());
+                                }
                             }
-                            catch (const std::exception& e)
+                        }
+                        else if (code_type_ == codeType[TYPE_ARUCO])
+                        {
+                            cv::aruco::DetectorParameters detectorParams = cv::aruco::DetectorParameters();
+                            cv::aruco::Dictionary dictionary = cv::aruco::getPredefinedDictionary(dictionary_);
+                            cv::aruco::ArucoDetector detector(dictionary, detectorParams);
+                            std::vector<int> markerIds;
+                            std::vector<std::vector<cv::Point2f>> corners, rejectedCandidates;
+                            detector.detectMarkers(*img, corners, markerIds, rejectedCandidates);
+
+                            if (!markerIds.empty())
                             {
-                                ROS_WARN_STREAM("failed to solvePnp problem with: " << e.what());
+                                // set coordinate system
+                                cv::Mat objPoints(4, 1, CV_32FC3);
+                                objPoints.ptr<cv::Vec3f>(0)[0] = cv::Vec3f(-marker_side_length_/2.f, marker_side_length_/2.f, 0);
+                                objPoints.ptr<cv::Vec3f>(0)[1] = cv::Vec3f(marker_side_length_/2.f, marker_side_length_/2.f, 0);
+                                objPoints.ptr<cv::Vec3f>(0)[2] = cv::Vec3f(marker_side_length_/2.f, -marker_side_length_/2.f, 0);
+                                objPoints.ptr<cv::Vec3f>(0)[3] = cv::Vec3f(-marker_side_length_/2.f, -marker_side_length_/2.f, 0);
+
+                                size_t markers = markerIds.size();
+                                std::vector<cv::Vec3d> rvecs(markers), tvecs(markers);
+                                // calculate pose for each marker
+                                for (size_t i = 0; i < markers; ++i)
+                                {
+                                    cv::solvePnP(objPoints, corners.at(i), cameraMatrix, distortionCoeffs,
+                                        rvecs.at(i), tvecs.at(i));
+                                }
+
+                                if (show_detected_image_)
+                                {
+                                    for (size_t i = 0; i < markerIds.size(); ++i)
+                                    {
+                                        cv::drawFrameAxes(*img, cameraMatrix, distortionCoeffs, rvecs[i], tvecs[i],
+                                            marker_side_length_ * 1.5f, 8);
+                                    }
+
+                                    cv::imshow("with coordinate", *img);
+                                    images_from_path::ImagePathDevice* dev =
+                                        dynamic_cast<images_from_path::ImagePathDevice*>(Camera.get());
+                                    cv::waitKey(dev == nullptr ? 1 : 0);
+                                }
                             }
                         }
                     }
