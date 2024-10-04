@@ -306,19 +306,19 @@ namespace whi_qrcode_pose
 
                                         if (request_count_ > 0 && i == 0)
                                         {
-                                            cv::Mat matRot(1, 3, CV_32F);
+                                            cv::Mat matRot(1, 3, CV_64F);
                                             for (int j = 0; j < 3; ++j)
                                             {
                                                 matRot.at <double>(0, j) = rvecs.at(i)[j];
                                             }
                                             rotations_.push_back(matRot);
-                                            cv::Mat matTrans(1, 3, CV_32F);
+                                            cv::Mat matTrans(1, 3, CV_64F);
                                             for (int j = 0; j < 3; ++j)
                                             {
                                                 matTrans.at <double>(0, j) = tvecs.at(i)[j];
                                             }
                                             translations_.push_back(matTrans);
-#ifndef DEBUG
+#ifdef DEBUG
                                             std::cout << "rvecs 0:" << rvecs.at(i) << std::endl;
                                             std::cout << "matRot:" << rotations_.back() << std::endl;
                                             std::cout << "tvecs 0:" << tvecs.at(i) << std::endl;
