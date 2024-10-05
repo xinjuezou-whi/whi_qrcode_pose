@@ -1,5 +1,5 @@
 # whi_qrcode_pose
-Determine the QR code position and orientation. Advertise service for retrieving the encoded info and the offsets to the camera frame
+Determine the QR code position and orientation, code ArUco is supported. Advertise service for retrieving the encoded info and the offsets to the camera frame
 
 ![qrcode](https://github.com/xinjuezou-whi/whi_qrcode_pose/assets/72239958/bdfe4f2f-de9b-4512-8ce1-144df485ca33)
 
@@ -46,17 +46,25 @@ Refer to the parameters to specify the image source
 ```
 whi_qrcode_pose:
   frame_id: camera
-  image_topic: image
-  camera_device: /dev/video0
-  image_path: debug_images
-  source: path # topic/device/path
+  source: device # topic/device/path
+  topic:
+    img_topic: /whi_pgnd_inspection/color_view
+  device:
+    cam_device: /dev/video0
+  path:
+    img_path: debug_images
   loop_hz: 20 # hz
-  show_source_image: true
+  show_source_image: false
   show_detected_image: true
-  service: qrcode_pose
+  activated_default: true
   frame_unit: meter # millimeter
-  intrinsic_projection: [385.75, 385.75, 323.12, 236.74]
+  intrinsic_projection: [386.157, 386.157, 323.237, 239.697] # focal length x, y, and optical center x, y
   intrinsic_distortion: [0.0, 0.0, 0.0, 0.0]
+  type: aruco # qr or aruco
+  # ArUco
+  aruco:
+    dictionary: DICT_4X4_50
+    marker_side_length: 0.165 # in meter
 ```
 
 ## Build
@@ -68,7 +76,7 @@ catkin build whi_qrcode_pose
 source /<your_workspace>/devel/setup.bash
 ```
 
-## Demo with local stored images
+## Demo with locally stored images
 For a quick demo, change the parameter "source" to "path", edit the "image_path" with your workspace like "/home/<your_workspace>/src/whi_qrcode_pose/debug_images/". And make sure parameters "show_source_image" and "show_detected_image" are both enabled, then run the following command:
 ```
 roslaunch whi_qrcode_pose whi_qrcode_pose.launch
