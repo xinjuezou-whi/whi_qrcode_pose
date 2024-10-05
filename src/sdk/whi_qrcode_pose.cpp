@@ -43,12 +43,6 @@ namespace whi_qrcode_pose
     void QrcodePose::init()
     {
         // params
-        std::string imgTopic, camDevice, imgPath;
-        node_handle_->param("image_topic", imgTopic, std::string("image"));
-        node_handle_->param("camera_device", camDevice, std::string(""));
-        node_handle_->param("image_path", imgPath, std::string(""));
-        std::string imgSouce;
-        node_handle_->param("source", imgSouce, std::string("topic")); // topic, device, path
         node_handle_->param("show_source_image", show_source_image_, false);
         node_handle_->param("show_detected_image", show_detected_image_, false);
         node_handle_->param("activated_default", activated_, false);
@@ -57,17 +51,25 @@ namespace whi_qrcode_pose
         frame_unit_scale_ = frameUnit == "millimeter" ? 1.0 : 0.001;
 
         /// camera
+        std::string imgSouce;
+        node_handle_->param("source", imgSouce, std::string("topic")); // topic, device, path
         std::shared_ptr<WhiCamera> camera;
         if (imgSouce == "topic")
         {
+            std::string imgTopic;
+            node_handle_->param(imgSouce + "/img_topic", imgTopic, std::string("image"));
             camera = std::make_shared<images_from_topic::ImageTopicDevice>(node_handle_, imgTopic);
         }
         else if (imgSouce == "device")
         {
+            std::string camDevice;
+            node_handle_->param(imgSouce + "/cam_device", camDevice, std::string(""));
             camera = std::make_shared<v4l2_camera::V4l2CameraDevice>(camDevice);
         }
         else if (imgSouce == "path")
         {
+            std::string imgPath;
+            node_handle_->param(imgSouce + "/img_path", imgPath, std::string(""));
             camera = std::make_shared<images_from_path::ImagePathDevice>(imgPath);
         }
         if (camera)

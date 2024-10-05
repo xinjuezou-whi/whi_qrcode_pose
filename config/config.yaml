@@ -1,17 +1,20 @@
 whi_qrcode_pose:
   frame_id: camera
-  image_topic: /whi_pgnd_inspection/color_view
-  camera_device: /dev/video0
-  image_path: debug_images
-  source: topic # topic/device/path
+  source: device # topic/device/path
+  topic:
+    img_topic: /whi_pgnd_inspection/color_view
+  device:
+    cam_device: /dev/video0
+  path:
+    img_path: debug_images
   loop_hz: 20 # hz
   show_source_image: false
-  show_detected_image: false
-  activated_default: false
+  show_detected_image: true
+  activated_default: true
   frame_unit: meter # millimeter
   intrinsic_projection: [386.157, 386.157, 323.237, 239.697] # focal length x, y, and optical center x, y
   intrinsic_distortion: [0.0, 0.0, 0.0, 0.0]
-  type: qr # qr or aruco
+  type: aruco # qr or aruco
   # ArUco
   aruco:
     dictionary: DICT_4X4_50
