@@ -8,7 +8,7 @@ whi_qrcode_pose:
   path:
     img_path: debug_images
   loop_hz: 20 # hz
-  show_source_image: false
+  show_source_image: true
   show_detected_image: true
   activated_default: true
   frame_unit: meter # millimeter
@@ -19,3 +19,4 @@ whi_qrcode_pose:
   aruco:
     dictionary: DICT_4X4_50
     marker_side_length: 0.165 # in meter
+    min_marker_perimeter: 100 # in pixel

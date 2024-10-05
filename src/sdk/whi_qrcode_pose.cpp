@@ -117,6 +117,7 @@ namespace whi_qrcode_pose
             }
 
             node_handle_->param("aruco/marker_side_length", marker_side_length_, 0.165);
+            node_handle_->param("aruco/min_marker_perimeter", min_marker_perimeter_, 50);
         }
 
         streaming(camera);
@@ -280,6 +281,7 @@ namespace whi_qrcode_pose
                         else if (code_type_ == codeType[TYPE_ARUCO])
                         {
                             cv::aruco::DetectorParameters detectorParams = cv::aruco::DetectorParameters();
+                            detectorParams.minMarkerPerimeterRate = double(min_marker_perimeter_) / std::max(img->rows, img->cols);
                             cv::aruco::Dictionary dictionary = cv::aruco::getPredefinedDictionary(dictionary_);
                             cv::aruco::ArucoDetector detector(dictionary, detectorParams);
                             std::vector<int> markerIds;
@@ -406,7 +408,7 @@ namespace whi_qrcode_pose
             vecAvg[2] /= rotations_.size();
             rotations_.clear();
             cv::Mat rotationAvg(vecAvg);
-#ifndef DEBUG
+#ifdef DEBUG
             std::cout << "QR average rotation:" << rotationAvg << std::endl;
 #endif
 

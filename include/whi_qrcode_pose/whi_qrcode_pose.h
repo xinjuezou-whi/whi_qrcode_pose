@@ -71,6 +71,7 @@ namespace whi_qrcode_pose
         int request_count_{ 0 };
         std::string code_type_{ codeType[TYPE_QR] };
         int dictionary_{ cv::aruco::DICT_4X4_50 };
-        double marker_side_length_{ 0.165 };
+        double marker_side_length_{ 0.165 }; // in meter
+        int min_marker_perimeter_{ 50 }; // in pixel
 	};
 } // namespace whi_qrcode_pose
