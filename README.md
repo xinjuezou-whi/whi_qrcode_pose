@@ -1,7 +1,9 @@
 # whi_qrcode_pose
-Determine the QR code position and orientation, code ArUco is supported. Advertise service for retrieving the encoded info and the offsets to the camera frame
+Detect the QR code and estimate its position and orientation, code ArUco is supported. Advertise service for retrieving the encoded info and the offsets to the camera frame
 
 ![qrcode](https://github.com/xinjuezou-whi/whi_qrcode_pose/assets/72239958/bdfe4f2f-de9b-4512-8ce1-144df485ca33)
+
+![aruco](https://github.com/user-attachments/assets/e9813b4f-dd35-4015-97ad-c20bf85222d2)
 
 This package can be applied in visual guidance and pose alignment:
 
@@ -33,9 +35,13 @@ git clone https://github.com/xinjuezou-whi/whi_interfaces.git
 ```
 
 ## Advertised service
-**qrcode**(whi_interfaces::WhiSrvQrcode)
+**qrcode_pose**(whi_interfaces::WhiSrvQrcode)
 
-The argument: timeout in the request specifies the maximum duration to wait for the response from the server. The response from the server is filled with the offset(geometry_msgs/PoseStamped) to the camera frame and the encoded contents of the QR code
+The argument: count in the request specifies the maximum number of estimated poses for average. The response from the server is filled with the offset(geometry_msgs/PoseStamped) to the camera frame and the encoded contents of the QR code
+
+**qrcode_activate**(std_msgs::Bool)
+
+To toggle the activity of the detection
 
 ## Image source
 Currently, three image sources are supported: USB CAM stream, the message of sensor_msgs::Image, and images stored in a local folder
