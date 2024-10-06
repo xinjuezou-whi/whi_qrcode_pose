@@ -194,11 +194,11 @@ namespace whi_qrcode_pose
                                 cv::circle(*img, cv::Point2i(int(corners.at<float>(0, 4)), int(corners.at<float>(0, 5))), 5, cv::Scalar(255, 0, 0), 10);
                                 cv::circle(*img, cv::Point2i(int(corners.at<float>(0, 6)), int(corners.at<float>(0, 7))), 5, cv::Scalar(255, 255, 0), 10);
 #endif
-                                float objectPoints[12] = { // follow the order of detected corners of QR code
-                                    1.0, 0.0, 0.0, // top-left
-                                    0.0, 0.0, 0.0, // top-right
-                                    0.0, 1.0, 0.0, // bottom-right
-                                    1.0, 1.0, 0.0  // bottom-left
+                                float objectPoints[12] = { // assign the axis for each corner
+                                    0.0, 1.0, 0.0, // top-left to be y
+                                    1.0, 1.0, 0.0, // top-right to be z
+                                    1.0, 0.0, 0.0, // bottom-right to be x
+                                    0.0, 0.0, 0.0  // bottom-left to be origin
                                 };
                                 cv::Mat objectVec(4, 3, CV_32F, objectPoints);
 
@@ -224,14 +224,14 @@ namespace whi_qrcode_pose
                                         cv::projectPoints(wrtVec, rvec, tvec, cameraMatrix, distortionCoeffs,
                                             imgPoints, jacob);
                                         
-                                        cv::Point topL(imgPoints.at<float>(1, 0), imgPoints.at<float>(1, 1));
-                                        cv::Point topR(imgPoints.at<float>(0, 0), imgPoints.at<float>(0, 1));
-                                        cv::Point bottomR(imgPoints.at<float>(2, 0), imgPoints.at<float>(2, 1));
+                                        cv::Point topL(imgPoints.at<float>(2, 0), imgPoints.at<float>(2, 1));
+                                        cv::Point bottomL(imgPoints.at<float>(0, 0), imgPoints.at<float>(0, 1));
+                                        cv::Point bottomR(imgPoints.at<float>(1, 0), imgPoints.at<float>(1, 1));
                                         cv::Point cornerTopL(corners.at<float>(0, 0), corners.at<float>(0, 1));
-                                        cv::Point cornerTopR(corners.at<float>(0, 2), corners.at<float>(0, 3));
+                                        cv::Point cornerBottomL(corners.at<float>(0, 6), corners.at<float>(0, 7));
                                         cv::Point cornerBottomR(corners.at<float>(0, 4), corners.at<float>(0, 5));
                                         if (fabs(cv::norm(topL - cornerTopL)) < 3.0 &&
-                                            fabs(cv::norm(topR - cornerTopR)) < 3.0 &&
+                                            fabs(cv::norm(bottomL - cornerBottomL)) < 3.0 &&
                                             fabs(cv::norm(bottomR - cornerBottomR)) < 3.0)
                                         {
 #ifdef DEBUG
@@ -310,6 +310,8 @@ namespace whi_qrcode_pose
 
                                         if (request_count_ > 0 && i == 0)
                                         {
+                                            codes_ = std::to_string(markerIds.at(i));
+
                                             cv::Mat matRot(1, 3, CV_64F);
                                             for (int j = 0; j < 3; ++j)
                                             {
