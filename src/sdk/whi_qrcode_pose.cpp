@@ -179,7 +179,15 @@ namespace whi_qrcode_pose
                             0.0, 0.0, 1.0 };
                         cv::Mat cameraMatrix(3, 3, CV_32F, camVec);
                         auto distortion = Camera->getIntrinsicDistortion();
-                        cv::Mat distortionCoeffs(4, 1, CV_32F, distortion.data());
+                        if (distortion.size() != 4 ||
+                            distortion.size() != 5 ||
+                            distortion.size() != 8 ||
+                            distortion.size() != 12 ||
+                            distortion.size() != 14)
+                        {
+                            ROS_WARN_STREAM("distortion element number " << distortion.size() << " doesn't meet 4, 5, 8, 12, or 14");
+                        }
+                        cv::Mat distortionCoeffs(distortion.size(), 1, CV_32F, distortion.data());
 
                         if (code_type_ == codeType[TYPE_QR])
                         {
