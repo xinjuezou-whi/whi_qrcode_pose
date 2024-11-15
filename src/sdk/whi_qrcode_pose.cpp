@@ -20,6 +20,7 @@ All text above must be included in any redistribution.
 #include <tf2/LinearMath/Transform.h>
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+#include <angles/angles.h>
 
 #include <opencv2/opencv.hpp>
 
@@ -434,6 +435,15 @@ namespace whi_qrcode_pose
             tf2::toMsg(tf2Transform, poseMsg);
 
             Response.offset_pose.pose.orientation = poseMsg.orientation;
+            tf2::Quaternion q(Response.offset_pose.pose.orientation.x, Response.offset_pose.pose.orientation.y,
+                Response.offset_pose.pose.orientation.z, Response.offset_pose.pose.orientation.w);
+            Response.eulers.resize(3);
+            Response.eulers_degree.resize(Response.eulers.size());
+  		    tf2::Matrix3x3(q).getRPY(Response.eulers[0], Response.eulers[1], Response.eulers[2]);
+            for (int i = 0; i < Response.eulers.size(); ++i)
+            {
+                Response.eulers_degree[i] = angles::to_degrees(Response.eulers[i]);
+            }
 
             return true;
         }
