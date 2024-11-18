@@ -324,13 +324,13 @@ namespace whi_qrcode_pose
                                             cv::Mat matRot(1, 3, CV_64F);
                                             for (int j = 0; j < 3; ++j)
                                             {
-                                                matRot.at <double>(0, j) = rvecs.at(i)[j];
+                                                matRot.at<double>(0, j) = rvecs.at(i)[j];
                                             }
                                             rotations_.push_back(matRot);
                                             cv::Mat matTrans(1, 3, CV_64F);
                                             for (int j = 0; j < 3; ++j)
                                             {
-                                                matTrans.at <double>(0, j) = tvecs.at(i)[j];
+                                                matTrans.at<double>(0, j) = tvecs.at(i)[j];
                                             }
                                             translations_.push_back(matTrans);
 #ifdef DEBUG
@@ -371,6 +371,34 @@ namespace whi_qrcode_pose
         };
     }
 
+    static geometry_msgs::Quaternion averageQuaternions(const std::vector<geometry_msgs::Quaternion>& Quaternions)
+    {
+        cv::Mat mat = cv::Mat::zeros(4, 4, CV_64F);
+        for (const auto& it : Quaternions)
+        {
+            double vec[4] = { it.w, it.x, it.y, it.z };
+            cv::Mat matRow(1, 4, CV_64F, vec);
+            mat += matRow.t() * matRow;
+        }
+        mat /= double(Quaternions.size());
+
+        // compute eigenvalues and eigenvectors
+        cv::Mat eigenValues, eigenVectors;
+        cv::eigen(mat, eigenValues, eigenVectors);
+        
+        geometry_msgs::Quaternion average;
+        average.w = eigenVectors.at<double>(0, 0);
+        average.x = eigenVectors.at<double>(0, 1);
+        average.y = eigenVectors.at<double>(0, 2);
+        average.z = eigenVectors.at<double>(0, 3);
+
+#ifdef DEBUG
+        std::cout << "eigen vector " << eigenVectors << std::endl;
+        std::cout << "average quaternion " << average << std::endl;
+#endif
+        return average;
+    }
+
     bool QrcodePose::onServiceQrcode(whi_interfaces::WhiSrvQrcode::Request& Request,
         whi_interfaces::WhiSrvQrcode::Response& Response)
     {
@@ -393,8 +421,10 @@ namespace whi_qrcode_pose
                 }
             }
 
+            // get the code's contents
             Response.code = codes_;
 
+            // compute the average of positions
             for (const auto& it : translations_)
             {
                 Response.offset_pose.pose.position.x += it.at<double>(0, 0) * frame_unit_scale_;
@@ -406,35 +436,34 @@ namespace whi_qrcode_pose
             Response.offset_pose.pose.position.z /= translations_.size();
             translations_.clear();
 
-            std::vector<double> vecAvg;
-            vecAvg.resize(3);
+            // compute the average of quaternions
+            std::vector<geometry_msgs::Quaternion> quaternios;
             for (const auto& it : rotations_)
             {
-                vecAvg[0] += it.at<double>(0, 0);
-                vecAvg[1] += it.at<double>(0, 1);
-                vecAvg[2] += it.at<double>(0, 2);
+                std::vector<double> vec;
+                vec.resize(3);
+                vec[0] = it.at<double>(0, 0);
+                vec[1] = it.at<double>(0, 1);
+                vec[2] = it.at<double>(0, 2);
+                cv::Mat rotVec(vec);
+
+                cv::Mat rotMat;
+                cv::Rodrigues(rotVec, rotMat);
+                // convert to tf2::Matrix3x3
+                tf2::Matrix3x3 tf2Rotation(rotMat.at<double>(0, 0), rotMat.at<double>(0, 1), rotMat.at<double>(0, 2),
+                    rotMat.at<double>(1, 0), rotMat.at<double>(1, 1), rotMat.at<double>(1, 2),
+                    rotMat.at<double>(2, 0), rotMat.at<double>(2, 1), rotMat.at<double>(2, 2));
+
+                tf2::Transform tf2Transform(tf2Rotation);
+                geometry_msgs::Pose poseMsg;
+                tf2::toMsg(tf2Transform, poseMsg);
+
+                quaternios.push_back(poseMsg.orientation);
             }
-            vecAvg[0] /= rotations_.size();
-            vecAvg[1] /= rotations_.size();
-            vecAvg[2] /= rotations_.size();
             rotations_.clear();
-            cv::Mat rotationAvg(vecAvg);
-#ifdef DEBUG
-            std::cout << "QR average rotation:" << rotationAvg << std::endl;
-#endif
+            Response.offset_pose.pose.orientation = averageQuaternions(quaternios);
 
-            cv::Mat rotation;
-            cv::Rodrigues(rotationAvg, rotation);
-            // convert to tf2::Matrix3x3
-            tf2::Matrix3x3 tf2Rotation(rotation.at<double>(0, 0), rotation.at<double>(0, 1), rotation.at<double>(0, 2),
-                                rotation.at<double>(1, 0), rotation.at<double>(1, 1), rotation.at<double>(1, 2),
-                                rotation.at<double>(2, 0), rotation.at<double>(2, 1), rotation.at<double>(2, 2));
-
-            tf2::Transform tf2Transform(tf2Rotation);
-            geometry_msgs::Pose poseMsg;
-            tf2::toMsg(tf2Transform, poseMsg);
-
-            Response.offset_pose.pose.orientation = poseMsg.orientation;
+            // convert to eulers
             tf2::Quaternion q(Response.offset_pose.pose.orientation.x, Response.offset_pose.pose.orientation.y,
                 Response.offset_pose.pose.orientation.z, Response.offset_pose.pose.orientation.w);
             Response.eulers.resize(3);
