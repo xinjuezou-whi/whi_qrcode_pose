@@ -39,9 +39,19 @@ git clone https://github.com/xinjuezou-whi/whi_interfaces.git
 
 The argument: count in the request specifies the maximum number of estimated poses for average. The response from the server is filled with the offset(geometry_msgs/PoseStamped) to the camera frame and the encoded contents of the QR code
 
+An example of the average of 5:
+```
+rosservice call /whi_qrcode_pose/qrcode_pose "count: 5"
+```
+
 **qrcode_activate**(std_msgs::Bool)
 
 To toggle the activity of the detection
+
+An example of enabling the detection:
+```
+rosservice call /whi_qrcode_pose/qrcode_activate "data: true"
+```
 
 ## Image source
 Currently, three image sources are supported: USB CAM stream, the message of sensor_msgs::Image, and images stored in a local folder
