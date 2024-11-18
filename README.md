@@ -63,7 +63,7 @@ whi_qrcode_pose:
   show_source_image: false
   show_detected_image: true
   activated_default: true
-  frame_unit: meter # millimeter
+  intrinsic_unit: millimeter # meter
   intrinsic_projection: [386.157, 386.157, 323.237, 239.697] # focal length x, y, and optical center x, y
   intrinsic_distortion: [0.0, 0.0, 0.0, 0.0]
   type: aruco # qr or aruco
