@@ -47,9 +47,9 @@ namespace whi_qrcode_pose
         node_handle_->param("show_source_image", show_source_image_, false);
         node_handle_->param("show_detected_image", show_detected_image_, false);
         node_handle_->param("activated_default", activated_, false);
-        std::string frameUnit;
-        node_handle_->param("frame_unit", frameUnit, std::string("meter")); // meter and millimeter
-        frame_unit_scale_ = frameUnit == "millimeter" ? 1.0 : 0.001;
+        std::string unit;
+        node_handle_->param("intrinsic_unit", unit, std::string("millimeter")); // meter and millimeter
+        intrinsic_unit_unit_scale_ = unit == "millimeter" ? 1.0 : 0.001;
 
         /// camera
         std::string imgSouce;
@@ -427,9 +427,9 @@ namespace whi_qrcode_pose
             // compute the average of positions
             for (const auto& it : translations_)
             {
-                Response.offset_pose.pose.position.x += it.at<double>(0, 0) * frame_unit_scale_;
-                Response.offset_pose.pose.position.y += it.at<double>(0, 1) * frame_unit_scale_;
-                Response.offset_pose.pose.position.z += it.at<double>(0, 2) * frame_unit_scale_;
+                Response.offset_pose.pose.position.x += it.at<double>(0, 0) * intrinsic_unit_unit_scale_;
+                Response.offset_pose.pose.position.y += it.at<double>(0, 1) * intrinsic_unit_unit_scale_;
+                Response.offset_pose.pose.position.z += it.at<double>(0, 2) * intrinsic_unit_unit_scale_;
             }
             Response.offset_pose.pose.position.x /= translations_.size();
             Response.offset_pose.pose.position.y /= translations_.size();

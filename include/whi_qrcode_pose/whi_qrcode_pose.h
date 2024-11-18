@@ -61,7 +61,7 @@ namespace whi_qrcode_pose
         std::atomic<bool> terminated_{ false };
         std::unique_ptr<ros::ServiceServer> service_{ nullptr };
         std::unique_ptr<ros::ServiceServer> service_activate_{ nullptr };
-        double frame_unit_scale_{ 0.001 };
+        double intrinsic_unit_unit_scale_{ 1.0 };
         std::vector<cv::Mat> rotations_;
         std::vector<cv::Mat> translations_;
         std::string codes_;
