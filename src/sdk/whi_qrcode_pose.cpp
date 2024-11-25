@@ -88,7 +88,11 @@ namespace whi_qrcode_pose
             std::transform(code_type_.begin(), code_type_.end(), code_type_.begin(),
                 [](unsigned char c) { return std::tolower(c); });
         }
-        if (code_type_ == codeType[TYPE_ARUCO])
+        if (code_type_ == codeType[TYPE_QR])
+        {
+            node_handle_->param("qr/marker_side_length", marker_side_length_qr_, 0.1);
+        }
+        else if (code_type_ == codeType[TYPE_ARUCO])
         {
             std::string dict;
             node_handle_->param("aruco/dictionary", dict, std::string("DICT_4X4_50"));
@@ -117,7 +121,7 @@ namespace whi_qrcode_pose
                 dictionary_ = mapDict[dict];
             }
 
-            node_handle_->param("aruco/marker_side_length", marker_side_length_, 0.165);
+            node_handle_->param("aruco/marker_side_length", marker_side_length_aruco_, 0.1);
             node_handle_->param("aruco/min_marker_perimeter", min_marker_perimeter_, 50);
         }
 
@@ -203,81 +207,52 @@ namespace whi_qrcode_pose
                                 cv::circle(*img, cv::Point2i(int(corners.at<float>(0, 4)), int(corners.at<float>(0, 5))), 5, cv::Scalar(255, 0, 0), 10);
                                 cv::circle(*img, cv::Point2i(int(corners.at<float>(0, 6)), int(corners.at<float>(0, 7))), 5, cv::Scalar(255, 255, 0), 10);
 #endif
-                                float objectPoints[12] = { // assign the axis for each corner
-                                    0.0, 1.0, 0.0, // top-left to be y
-                                    1.0, 1.0, 0.0, // top-right to be z
-                                    1.0, 0.0, 0.0, // bottom-right to be x
-                                    0.0, 0.0, 0.0  // bottom-left to be origin
-                                };
-                                cv::Mat objectVec(4, 3, CV_32F, objectPoints);
+                                // set coordinate system
+                                // detected corner ordered as top-left, top-right, bottom-right, bottom-left
+                                // *---------*
+                                //  ---------
+                                //      y                            
+                                //      |_x 
+                                //  --------- 
+                                // *---------*
+                                // if the frame is specified at the center of code like above figure, then the points have following coords:
+                                double length = 0.061;
+                                cv::Mat objPoints(4, 1, CV_32FC3);
+                                objPoints.ptr<cv::Vec3f>(0)[0] = cv::Vec3f(-marker_side_length_qr_/2.f, marker_side_length_qr_/2.f, 0);
+                                objPoints.ptr<cv::Vec3f>(0)[1] = cv::Vec3f(marker_side_length_qr_/2.f, marker_side_length_qr_/2.f, 0);
+                                objPoints.ptr<cv::Vec3f>(0)[2] = cv::Vec3f(marker_side_length_qr_/2.f, -marker_side_length_qr_/2.f, 0);
+                                objPoints.ptr<cv::Vec3f>(0)[3] = cv::Vec3f(-marker_side_length_qr_/2.f, -marker_side_length_qr_/2.f, 0);
 
                                 cv::Mat rvec, tvec;
                                 try
                                 {
                                     codes_ = detecter.decode(*img, corners);
-                                    if (cv::solvePnP(objectVec, corners, cameraMatrix, distortionCoeffs,
+                                    if (cv::solvePnP(objPoints, corners, cameraMatrix, distortionCoeffs,
                                         rvec, tvec))
                                     {
-                                        cv::solvePnPRefineLM(objectVec, corners, cameraMatrix, distortionCoeffs,
+                                        cv::solvePnPRefineLM(objPoints, corners, cameraMatrix, distortionCoeffs,
                                             rvec, tvec);
 
-                                        // project to 2D frame
-                                        float wrtPoints[12] = {
-                                            0.0, 0.0, 0.0, // origin
-                                            1.0, 0.0, 0.0, // x
-                                            0.0, 1.0, 0.0, // y
-                                            0.0, 0.0, 1.0  // z
-                                        };
-                                        cv::Mat wrtVec(4, 3, CV_32F, wrtPoints);
-                                        cv::Mat imgPoints, jacob;
-                                        cv::projectPoints(wrtVec, rvec, tvec, cameraMatrix, distortionCoeffs,
-                                            imgPoints, jacob);
-                                        
-                                        cv::Point topL(imgPoints.at<float>(2, 0), imgPoints.at<float>(2, 1));
-                                        cv::Point bottomL(imgPoints.at<float>(0, 0), imgPoints.at<float>(0, 1));
-                                        cv::Point bottomR(imgPoints.at<float>(1, 0), imgPoints.at<float>(1, 1));
-                                        cv::Point cornerTopL(corners.at<float>(0, 0), corners.at<float>(0, 1));
-                                        cv::Point cornerBottomL(corners.at<float>(0, 6), corners.at<float>(0, 7));
-                                        cv::Point cornerBottomR(corners.at<float>(0, 4), corners.at<float>(0, 5));
-                                        if (fabs(cv::norm(topL - cornerTopL)) < 3.0 &&
-                                            fabs(cv::norm(bottomL - cornerBottomL)) < 3.0 &&
-                                            fabs(cv::norm(bottomR - cornerBottomR)) < 3.0)
+                                        if (request_count_ > 0)
                                         {
-#ifdef DEBUG
-                                            std::cout << "translation " << tvec << " and type " << 
-                                                cv::typeToString(tvec.type()) << std::endl;
-                                            std::cout << "rotation " << rvec << " and type " <<
-                                                cv::typeToString(rvec.type()) << std::endl;
-#endif
+                                            rotations_.push_back(rvec);
+                                            translations_.push_back(tvec);
 
-                                            if (request_count_ > 0)
+                                            if (rotations_.size() >= request_count_)
                                             {
-                                                rotations_.push_back(rvec);
-                                                translations_.push_back(tvec);
-                                                if (rotations_.size() >= request_count_)
-                                                {
-                                                    request_count_ = 0;
-                                                    cv_.notify_all();
-                                                }
+                                                request_count_ = 0;
+                                                cv_.notify_all();
                                             }
+                                        }
+                                        if (show_detected_image_)
+                                        {
+                                            cv::drawFrameAxes(*img, cameraMatrix, distortionCoeffs, rvec, tvec,
+                                                length, 8);
 
-                                            if (show_detected_image_)
-                                            {
-                                                // draw coordinate in 2D frame
-                                                cv::Scalar color[3] = { cv::Scalar(0, 0, 255), cv::Scalar(0, 255, 0), cv::Scalar(255, 0, 0) };
-                                                cv::Point2i origin(int(imgPoints.at<float>(0, 0)), int(imgPoints.at<float>(0, 1)));
-                                                for (int i = 1; i < 4; ++i)
-                                                {
-                                                    cv::line(*img, origin,
-                                                        cv::Point2i(int(imgPoints.at<float>(i, 0)), int(imgPoints.at<float>(i, 1))),
-                                                        color[i - 1], 8);
-                                                }
-
-                                                cv::imshow("with coordinate", *img);
-                                                images_from_path::ImagePathDevice* dev =
-                                                    dynamic_cast<images_from_path::ImagePathDevice*>(Camera.get());
-                                                cv::waitKey(dev == nullptr ? 1 : 0);
-                                            }
+                                            cv::imshow("with coordinate", *img);
+                                            images_from_path::ImagePathDevice* dev =
+                                                dynamic_cast<images_from_path::ImagePathDevice*>(Camera.get());
+                                            cv::waitKey(dev == nullptr ? 1 : 0);
                                         }
                                     }
                                 }
@@ -300,11 +275,19 @@ namespace whi_qrcode_pose
                             if (!markerIds.empty())
                             {
                                 // set coordinate system
+                                // detected corner ordered as top-left, top-right, bottom-right, bottom-left
+                                // *---------*
+                                //  ---------
+                                //      y                            
+                                //      |_x 
+                                //  --------- 
+                                // *---------*
+                                // if the frame is specified at the center of code like above figure, then the points have following coords:
                                 cv::Mat objPoints(4, 1, CV_32FC3);
-                                objPoints.ptr<cv::Vec3f>(0)[0] = cv::Vec3f(-marker_side_length_/2.f, marker_side_length_/2.f, 0);
-                                objPoints.ptr<cv::Vec3f>(0)[1] = cv::Vec3f(marker_side_length_/2.f, marker_side_length_/2.f, 0);
-                                objPoints.ptr<cv::Vec3f>(0)[2] = cv::Vec3f(marker_side_length_/2.f, -marker_side_length_/2.f, 0);
-                                objPoints.ptr<cv::Vec3f>(0)[3] = cv::Vec3f(-marker_side_length_/2.f, -marker_side_length_/2.f, 0);
+                                objPoints.ptr<cv::Vec3f>(0)[0] = cv::Vec3f(-marker_side_length_aruco_/2.f, marker_side_length_aruco_/2.f, 0);
+                                objPoints.ptr<cv::Vec3f>(0)[1] = cv::Vec3f(marker_side_length_aruco_/2.f, marker_side_length_aruco_/2.f, 0);
+                                objPoints.ptr<cv::Vec3f>(0)[2] = cv::Vec3f(marker_side_length_aruco_/2.f, -marker_side_length_aruco_/2.f, 0);
+                                objPoints.ptr<cv::Vec3f>(0)[3] = cv::Vec3f(-marker_side_length_aruco_/2.f, -marker_side_length_aruco_/2.f, 0);
 
                                 size_t markers = markerIds.size();
                                 std::vector<cv::Vec3d> rvecs(markers), tvecs(markers);
@@ -355,7 +338,7 @@ namespace whi_qrcode_pose
                                     for (size_t i = 0; i < markerIds.size(); ++i)
                                     {
                                         cv::drawFrameAxes(*img, cameraMatrix, distortionCoeffs, rvecs[i], tvecs[i],
-                                            marker_side_length_ * 1.5f, 8);
+                                            marker_side_length_aruco_, 8);
                                     }
 
                                     cv::imshow("with coordinate", *img);
