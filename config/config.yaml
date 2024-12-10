@@ -1,5 +1,4 @@
 whi_qrcode_pose:
-  frame_id: camera
   source: device # topic/device/path
   topic:
     img_topic: /whi_pgnd_inspection/color_view #/camera/color/image_raw
