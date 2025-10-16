@@ -1,5 +1,5 @@
 /******************************************************************
-v4l camera device under ROS 1
+v4l camera device under ROS 2
 
 Features:
 - v2l camera
@@ -12,7 +12,8 @@ All text above must be included in any redistribution.
 
 Changelog:
 2023-07-15: Initial version
-2022-xx-xx: xxx
+2025-10-16: Migrate to ROS 2
+2025-xx-xx: xxx
 ******************************************************************/
 #pragma once
 #include "whi_base_camera.h"

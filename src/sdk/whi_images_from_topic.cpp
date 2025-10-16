@@ -14,7 +14,7 @@ All text above must be included in any redistribution.
 ******************************************************************/
 #include "whi_qrcode_pose/whi_images_from_topic.h"
 
-#include <sensor_msgs/image_encodings.h>
+#include <sensor_msgs/image_encodings.hpp>
 
 #include "boost/endian/conversion.hpp"
 #include <regex>
@@ -25,9 +25,8 @@ namespace images_from_topic
     {
         if (node_handle_ && !topic_.empty())
         {
-            sub_images_ = std::make_unique<ros::Subscriber>(
-                node_handle_->subscribe<sensor_msgs::Image>(topic_, 10,
-                std::bind(&ImageTopicDevice::callbackImage, this, std::placeholders::_1)));
+            sub_images_ = node_handle_->create_subscription<sensor_msgs::msg::Image>(
+                topic_, 10, std::bind(&ImageTopicDevice::callbackImage, this, std::placeholders::_1));
         }
 
         return (is_opened_ = sub_images_ ? true : false);
@@ -35,7 +34,7 @@ namespace images_from_topic
 
     bool ImageTopicDevice::start()
     {
-        ROS_INFO("Starting camera");
+        RCLCPP_INFO(rclcpp::get_logger("ImageTopicDevice"), "Starting camera");
 
         queue_images_ = std::make_unique<EventQueue<cv::Mat>>(5, false);
 
@@ -67,7 +66,7 @@ namespace images_from_topic
         return topic_;
     }
 
-    void ImageTopicDevice::callbackImage(const sensor_msgs::Image::ConstPtr& Msg)
+    void ImageTopicDevice::callbackImage(const sensor_msgs::msg::Image::SharedPtr Msg)
     {
         if (queue_images_)
         {
@@ -150,7 +149,7 @@ namespace images_from_topic
         throw std::runtime_error("Unrecognized image encoding [" + Encoding + "]");
     }
 
-    static cv::Mat matFromImageMsg(const sensor_msgs::Image& Source)
+    static cv::Mat matFromImageMsg(const sensor_msgs::msg::Image& Source)
     {
         int sourceType = getCvType(Source.encoding);
         int byteDepth = sensor_msgs::image_encodings::bitDepth(Source.encoding) / 8;
@@ -379,7 +378,7 @@ namespace images_from_topic
         return res;
     }
 
-    std::shared_ptr<cv::Mat> ImageTopicDevice::toCvMat(const sensor_msgs::Image& Source, const std::string& Encoding)
+    std::shared_ptr<cv::Mat> ImageTopicDevice::toCvMat(const sensor_msgs::msg::Image& Source, const std::string& Encoding)
     {
         auto src = matFromImageMsg(Source);
 

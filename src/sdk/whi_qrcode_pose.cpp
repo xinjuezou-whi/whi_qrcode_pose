@@ -1,5 +1,5 @@
 /******************************************************************
-QR code pose detection interface under ROS 1
+QR code pose detection interface under ROS 2
 
 Features:
 - instance image source according to configure
@@ -19,14 +19,14 @@ All text above must be included in any redistribution.
 #include <tf2/LinearMath/Matrix3x3.h>
 #include <tf2/LinearMath/Transform.h>
 #include <tf2/LinearMath/Quaternion.h>
-#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 #include <angles/angles.h>
 
 #include <opencv2/opencv.hpp>
 
 namespace whi_qrcode_pose
 {
-    QrcodePose::QrcodePose(std::shared_ptr<ros::NodeHandle>& NodeHandle)
+    QrcodePose::QrcodePose(std::shared_ptr<rclcpp::Node>& NodeHandle)
         : node_handle_(NodeHandle)
     {
         init();
@@ -44,58 +44,62 @@ namespace whi_qrcode_pose
     void QrcodePose::init()
     {
         // params
-        node_handle_->param("show_source_image", show_source_image_, false);
-        node_handle_->param("show_detected_image", show_detected_image_, false);
-        node_handle_->param("activated_default", activated_, false);
-        std::string unit;
-        node_handle_->param("intrinsic_unit", unit, std::string("millimeter")); // meter and millimeter
+        node_handle_->declare_parameter<bool>("show_source_image", show_source_image_);
+        show_source_image_ = node_handle_->get_parameter("show_source_image").as_bool();
+        node_handle_->declare_parameter<bool>("show_detected_image", show_detected_image_);
+        show_detected_image_ = node_handle_->get_parameter("show_detected_image").as_bool();
+        node_handle_->declare_parameter<bool>("activated_default", activated_);
+        activated_ = node_handle_->get_parameter("activated_default").as_bool();
+        node_handle_->declare_parameter<std::string>("intrinsic_unit", std::string("millimeter")); // meter and millimeter
+        auto unit = node_handle_->get_parameter("intrinsic_unit").as_string();
         intrinsic_unit_unit_scale_ = unit == "millimeter" ? 1.0 : 0.001;
 
         /// camera
-        std::string imgSouce;
-        node_handle_->param("source", imgSouce, std::string("topic")); // topic, device, path
+        node_handle_->declare_parameter<std::string>("source", std::string("topic")); // topic, device, path
+        auto imgSouce = node_handle_->get_parameter("source").as_string();
         std::shared_ptr<WhiCamera> camera;
         if (imgSouce == "topic")
         {
-            std::string imgTopic;
-            node_handle_->param(imgSouce + "/img_topic", imgTopic, std::string("image"));
+            node_handle_->declare_parameter<std::string>(imgSouce + ".img_topic", std::string("image"));
+            auto imgTopic = node_handle_->get_parameter(imgSouce + ".img_topic").as_string();
             camera = std::make_shared<images_from_topic::ImageTopicDevice>(node_handle_, imgTopic);
         }
         else if (imgSouce == "device")
         {
-            std::string camDevice;
-            node_handle_->param(imgSouce + "/cam_device", camDevice, std::string(""));
+            node_handle_->declare_parameter<std::string>(imgSouce + ".cam_device", std::string(""));
+            auto camDevice = node_handle_->get_parameter(imgSouce + ".cam_device").as_string();
             camera = std::make_shared<v4l2_camera::V4l2CameraDevice>(camDevice);
         }
         else if (imgSouce == "path")
         {
-            std::string imgPath;
-            node_handle_->param(imgSouce + "/img_path", imgPath, std::string(""));
+            node_handle_->declare_parameter<std::string>(imgSouce + ".imgPath", std::string(""));
+            auto imgPath = node_handle_->get_parameter(imgSouce + ".imgPath").as_string();
             camera = std::make_shared<images_from_path::ImagePathDevice>(imgPath);
         }
         if (camera)
         {
-            std::vector<double> intrinsicProjection, intrinsicDistortion;
-            node_handle_->getParam("intrinsic_projection", intrinsicProjection);
-            node_handle_->getParam("intrinsic_distortion", intrinsicDistortion);
+            node_handle_->declare_parameter<std::vector<double>>("intrinsic_projection", std::vector<double>());
+            std::vector<double> intrinsicProjection = node_handle_->get_parameter("intrinsic_projection").as_double_array();
+            node_handle_->declare_parameter<std::vector<double>>("intrinsic_distortion", std::vector<double>());
+            std::vector<double> intrinsicDistortion = node_handle_->get_parameter("intrinsic_distortion").as_double_array();
 
             camera->setIntrinsicProjection(intrinsicProjection);
             camera->setIntrinsicDistortion(intrinsicDistortion);
         }
         // code type
-        if (node_handle_->param("type", code_type_, std::string(codeType[TYPE_QR])))
-        {
-            std::transform(code_type_.begin(), code_type_.end(), code_type_.begin(),
-                [](unsigned char c) { return std::tolower(c); });
-        }
+        node_handle_->declare_parameter<std::string>("type", std::string(codeType[TYPE_QR]));
+        code_type_ = node_handle_->get_parameter("type").as_string();
+        std::transform(code_type_.begin(), code_type_.end(), code_type_.begin(),
+            [](unsigned char c) { return std::tolower(c); });
         if (code_type_ == codeType[TYPE_QR])
         {
-            node_handle_->param("qr/marker_side_length", marker_side_length_qr_, 0.1);
+            node_handle_->declare_parameter<double>("qr.marker_side_length", marker_side_length_qr_);
+            marker_side_length_qr_ = node_handle_->get_parameter("qr.marker_side_length").as_double();
         }
         else if (code_type_ == codeType[TYPE_ARUCO])
         {
-            std::string dict;
-            node_handle_->param("aruco/dictionary", dict, std::string("DICT_4X4_50"));
+            node_handle_->declare_parameter<std::string>("aruco.dictionary", std::string("DICT_4X4_50"));
+            auto dict = node_handle_->get_parameter("aruco.dictionary").as_string();
             std::map<std::string, int> mapDict
             {
 				{"DICT_4X4_50", cv::aruco::DICT_4X4_50},
@@ -121,31 +125,39 @@ namespace whi_qrcode_pose
                 dictionary_ = mapDict[dict];
             }
 
-            node_handle_->param("aruco/marker_side_length", marker_side_length_aruco_, 0.1);
-            node_handle_->param("aruco/min_marker_perimeter", min_marker_perimeter_, 50);
+            node_handle_->declare_parameter<double>("aruco.marker_side_length", marker_side_length_aruco_);
+            marker_side_length_aruco_ = node_handle_->get_parameter("aruco.marker_side_length").as_double();
+            node_handle_->declare_parameter<int>("aruco.min_marker_perimeter", min_marker_perimeter_);
+            min_marker_perimeter_ = node_handle_->get_parameter("aruco.min_marker_perimeter").as_int();
         }
 
         streaming(camera);
 
         // service
-        service_ = std::make_unique<ros::ServiceServer>(
-            node_handle_->advertiseService("qrcode_pose", &QrcodePose::onServiceQrcode, this));
-        service_activate_ = std::make_unique<ros::ServiceServer>(
-            node_handle_->advertiseService("qrcode_activate", &QrcodePose::onServiceActivate, this));
+        service_ = node_handle_->create_service<whi_interfaces::srv::WhiSrvQrcode>("qrcode_pose",
+            std::bind(&QrcodePose::onServiceQrcode, this, std::placeholders::_1, std::placeholders::_2));
+        service_activate_ = node_handle_->create_service<std_srvs::srv::SetBool>("qrcode_activate",
+            std::bind(&QrcodePose::onServiceActivate, this, std::placeholders::_1, std::placeholders::_2));
 
         // spinner
-        node_handle_->param("loop_hz", loop_hz_, 10.0);
-        ros::Duration updateFreq = ros::Duration(1.0 / loop_hz_);
-        non_realtime_loop_ = std::make_unique<ros::Timer>(node_handle_->createTimer(updateFreq,
-            std::bind(&QrcodePose::update, this, std::placeholders::_1)));
+        node_handle_->declare_parameter<double>("frequency", 10.0);
+        double frequency = node_handle_->get_parameter("frequency").as_double();
+        auto period = std::chrono::duration<double>(1.0 / frequency);
+        non_realtime_loop_ = node_handle_->create_wall_timer(
+            std::chrono::duration_cast<std::chrono::milliseconds>(period),
+            std::bind(&QrcodePose::update, this));
     }
 
-    void QrcodePose::update(const ros::TimerEvent& Event)
+    void QrcodePose::update()
     {
-        elapsed_time_ = ros::Duration(Event.current_real - Event.last_real);
+        static rclcpp::Time lastTime = node_handle_->get_clock()->now();
+        auto currentTime = node_handle_->get_clock()->now();
+        rclcpp::Duration elapsedTime = currentTime - lastTime;
+        lastTime = currentTime;
+
         // TODO
 #ifdef DEBUG
-        std::cout << "elapsed " << elapsed_time_.toSec() << std::endl;
+        std::cout << "elapsed " << elapsedTime.seconds() << std::endl;
 #endif
     }
 
@@ -190,7 +202,8 @@ namespace whi_qrcode_pose
                             distortion.size() != 12 &&
                             distortion.size() != 14)
                         {
-                            ROS_WARN_STREAM("distortion element number " << distortion.size() << " doesn't meet 4, 5, 8, 12, or 14");
+                            RCLCPP_WARN_STREAM(node_handle_->get_logger(),
+                                "distortion element number " << distortion.size() << " doesn't meet 4, 5, 8, 12, or 14");
                         }
                         cv::Mat distortionCoeffs(distortion.size(), 1, CV_32F, distortion.data());
 
@@ -258,7 +271,7 @@ namespace whi_qrcode_pose
                                 }
                                 catch (const std::exception& e)
                                 {
-                                    ROS_WARN_STREAM("failed to solvePnp problem with: " << e.what());
+                                    RCLCPP_WARN_STREAM(node_handle_->get_logger(), "failed to solvePnp problem with: " << e.what());
                                 }
                             }
                         }
@@ -354,7 +367,7 @@ namespace whi_qrcode_pose
         };
     }
 
-    static geometry_msgs::Quaternion averageQuaternions(const std::vector<geometry_msgs::Quaternion>& Quaternions)
+    static geometry_msgs::msg::Quaternion averageQuaternions(const std::vector<geometry_msgs::msg::Quaternion>& Quaternions)
     {
         cv::Mat mat = cv::Mat::zeros(4, 4, CV_64F);
         for (const auto& it : Quaternions)
@@ -369,7 +382,7 @@ namespace whi_qrcode_pose
         cv::Mat eigenValues, eigenVectors;
         cv::eigen(mat, eigenValues, eigenVectors);
         
-        geometry_msgs::Quaternion average;
+        geometry_msgs::msg::Quaternion average;
         average.w = eigenVectors.at<double>(0, 0);
         average.x = eigenVectors.at<double>(0, 1);
         average.y = eigenVectors.at<double>(0, 2);
@@ -382,8 +395,8 @@ namespace whi_qrcode_pose
         return average;
     }
 
-    bool QrcodePose::onServiceQrcode(whi_interfaces::WhiSrvQrcode::Request& Request,
-        whi_interfaces::WhiSrvQrcode::Response& Response)
+    bool QrcodePose::onServiceQrcode(const std::shared_ptr<whi_interfaces::srv::WhiSrvQrcode::Request> Request,
+	    std::shared_ptr<whi_interfaces::srv::WhiSrvQrcode::Response> Response)
     {
         if (!activated_)
         {
@@ -391,7 +404,7 @@ namespace whi_qrcode_pose
         }
         else
         {
-            request_count_ = Request.count;
+            request_count_ = Request->count;
 
             {
                 std::unique_lock<std::mutex> lock(mtx_);
@@ -405,22 +418,22 @@ namespace whi_qrcode_pose
             }
 
             // get the code's contents
-            Response.code = codes_;
+            Response->code = codes_;
 
             // compute the average of positions
             for (const auto& it : translations_)
             {
-                Response.offset_pose.pose.position.x += it.at<double>(0, 0) * intrinsic_unit_unit_scale_;
-                Response.offset_pose.pose.position.y += it.at<double>(0, 1) * intrinsic_unit_unit_scale_;
-                Response.offset_pose.pose.position.z += it.at<double>(0, 2) * intrinsic_unit_unit_scale_;
+                Response->offset_pose.pose.position.x += it.at<double>(0, 0) * intrinsic_unit_unit_scale_;
+                Response->offset_pose.pose.position.y += it.at<double>(0, 1) * intrinsic_unit_unit_scale_;
+                Response->offset_pose.pose.position.z += it.at<double>(0, 2) * intrinsic_unit_unit_scale_;
             }
-            Response.offset_pose.pose.position.x /= translations_.size();
-            Response.offset_pose.pose.position.y /= translations_.size();
-            Response.offset_pose.pose.position.z /= translations_.size();
+            Response->offset_pose.pose.position.x /= translations_.size();
+            Response->offset_pose.pose.position.y /= translations_.size();
+            Response->offset_pose.pose.position.z /= translations_.size();
             translations_.clear();
 
             // compute the average of quaternions
-            std::vector<geometry_msgs::Quaternion> quaternios;
+            std::vector<geometry_msgs::msg::Quaternion> quaternios;
             for (const auto& it : rotations_)
             {
                 std::vector<double> vec;
@@ -438,35 +451,35 @@ namespace whi_qrcode_pose
                     rotMat.at<double>(2, 0), rotMat.at<double>(2, 1), rotMat.at<double>(2, 2));
 
                 tf2::Transform tf2Transform(tf2Rotation);
-                geometry_msgs::Pose poseMsg;
+                geometry_msgs::msg::Pose poseMsg;
                 tf2::toMsg(tf2Transform, poseMsg);
 
                 quaternios.push_back(poseMsg.orientation);
             }
             rotations_.clear();
-            Response.offset_pose.pose.orientation = averageQuaternions(quaternios);
+            Response->offset_pose.pose.orientation = averageQuaternions(quaternios);
 
             // convert to eulers
-            tf2::Quaternion q(Response.offset_pose.pose.orientation.x, Response.offset_pose.pose.orientation.y,
-                Response.offset_pose.pose.orientation.z, Response.offset_pose.pose.orientation.w);
-            Response.eulers.resize(3);
-            Response.eulers_degree.resize(Response.eulers.size());
-  		    tf2::Matrix3x3(q).getRPY(Response.eulers[0], Response.eulers[1], Response.eulers[2]);
-            for (int i = 0; i < Response.eulers.size(); ++i)
+            tf2::Quaternion q(Response->offset_pose.pose.orientation.x, Response->offset_pose.pose.orientation.y,
+                Response->offset_pose.pose.orientation.z, Response->offset_pose.pose.orientation.w);
+            Response->eulers.resize(3);
+            Response->eulers_degree.resize(Response->eulers.size());
+  		    tf2::Matrix3x3(q).getRPY(Response->eulers[0], Response->eulers[1], Response->eulers[2]);
+            for (int i = 0; i < Response->eulers.size(); ++i)
             {
-                Response.eulers_degree[i] = angles::to_degrees(Response.eulers[i]);
+                Response->eulers_degree[i] = angles::to_degrees(Response->eulers[i]);
             }
 
             return true;
         }
     }
 
-    bool QrcodePose::onServiceActivate(std_srvs::SetBool::Request& Request,
-            std_srvs::SetBool::Response& Response)
+    bool QrcodePose::onServiceActivate(const std::shared_ptr<std_srvs::srv::SetBool::Request> Request,
+	    std::shared_ptr<std_srvs::srv::SetBool::Response> Response)
     {
-        activated_ = Request.data;
-        Response.success = true;
+        activated_ = Request->data;
+        Response->success = true;
 
-        return Response.success;
+        return Response->success;
     }
 } // namespace whi_qrcode_pose

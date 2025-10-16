@@ -1,5 +1,5 @@
 /******************************************************************
-images from subcribed topic under ROS 1
+images from subcribed topic under ROS 2
 
 Features:
 - images subscribed
@@ -13,14 +13,15 @@ All text above must be included in any redistribution.
 
 Changelog:
 2024-03-06: Initial version
+2025-10-16: Migrate to ROS 2
 2024-xx-xx: xxx
 ******************************************************************/
 #pragma once
 #include "whi_base_camera.h"
 #include "event_queue.h"
 
-#include <ros/ros.h>
-#include <sensor_msgs/Image.h>
+#include <rclcpp/rclcpp.hpp>
+#include <sensor_msgs/msg/image.hpp>
 
 #include <string>
 #include <vector>
@@ -31,7 +32,7 @@ namespace images_from_topic
     class ImageTopicDevice : public WhiCamera
     {
     public:
-        explicit ImageTopicDevice(std::shared_ptr<ros::NodeHandle>& NodeHandle, const std::string& Topic)
+        explicit ImageTopicDevice(std::shared_ptr<rclcpp::Node>& NodeHandle, const std::string& Topic)
             : WhiCamera(), node_handle_(NodeHandle), topic_(Topic) {};
         virtual ~ImageTopicDevice() = default;
 
@@ -42,13 +43,13 @@ namespace images_from_topic
         std::string getCameraName() const override;
 
     private:
-        void callbackImage(const sensor_msgs::Image::ConstPtr& Msg);
-        std::shared_ptr<cv::Mat> toCvMat(const sensor_msgs::Image& Source, const std::string& Encoding);
+        void callbackImage(const sensor_msgs::msg::Image::SharedPtr Msg);
+        std::shared_ptr<cv::Mat> toCvMat(const sensor_msgs::msg::Image& Source, const std::string& Encoding);
 
     private:
-        std::shared_ptr<ros::NodeHandle> node_handle_{ nullptr };
+        std::shared_ptr<rclcpp::Node> node_handle_{ nullptr };
         std::string topic_;
-        std::unique_ptr<ros::Subscriber> sub_images_{ nullptr };
+        rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr sub_images_{ nullptr };
         EventQueue<cv::Mat>::UniquePtr queue_images_{ nullptr };
     };
 }  // namespace images_from_topic

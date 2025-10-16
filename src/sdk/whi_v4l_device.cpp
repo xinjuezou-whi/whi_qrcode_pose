@@ -13,7 +13,7 @@ All text above must be included in any redistribution.
 ******************************************************************/
 #include "whi_qrcode_pose/whi_v4l_device.h"
 
-#include <ros/ros.h>
+#include <rclcpp/rclcpp.hpp>
 
 #include <fcntl.h>
 #include <sys/ioctl.h>
@@ -38,7 +38,7 @@ namespace v4l2_camera
         fd_ = ::open(device_.c_str(), O_RDWR);
         if (fd_ < 0)
         {
-            ROS_FATAL_STREAM("Failed opening device " << device_ << ": " << strerror(errno) << " (" << errno << ")");
+            RCLCPP_FATAL_STREAM(rclcpp::get_logger("V4l2CameraDevice"), "Failed opening device " << device_ << ": " << strerror(errno) << " (" << errno << ")");
             return false;
         }
 
@@ -48,11 +48,11 @@ namespace v4l2_camera
         auto canRead = capabilities_.capabilities & V4L2_CAP_READWRITE;
         auto canStream = capabilities_.capabilities & V4L2_CAP_STREAMING;
 
-        ROS_INFO_STREAM("Driver: " << capabilities_.driver);
-        ROS_INFO_STREAM("Version: " << capabilities_.version);
-        ROS_INFO_STREAM("Device: " << capabilities_.card);
-        ROS_INFO_STREAM("Location: " << capabilities_.bus_info);
-        ROS_INFO_STREAM("Capabilities:\n" << "  Read/write: " << (canRead ? "YES\n" : "NO\n")
+        RCLCPP_INFO_STREAM(rclcpp::get_logger("V4l2CameraDevice"), "Driver: " << capabilities_.driver);
+        RCLCPP_INFO_STREAM(rclcpp::get_logger("V4l2CameraDevice"), "Version: " << capabilities_.version);
+        RCLCPP_INFO_STREAM(rclcpp::get_logger("V4l2CameraDevice"), "Device: " << capabilities_.card);
+        RCLCPP_INFO_STREAM(rclcpp::get_logger("V4l2CameraDevice"), "Location: " << capabilities_.bus_info);
+        RCLCPP_INFO_STREAM(rclcpp::get_logger("V4l2CameraDevice"), "Capabilities:\n" << "  Read/write: " << (canRead ? "YES\n" : "NO\n")
             << "  Streaming: " << (canStream ? "YES" : "NO"));
 
         // Get current data (pixel) format
@@ -60,7 +60,7 @@ namespace v4l2_camera
         formatReq.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
         xioctl(fd_, VIDIOC_G_FMT, &formatReq);
         cur_data_format_ = PixelFormat(formatReq.fmt.pix);
-        ROS_INFO_STREAM("Current pixel format: " << v4l2_fourcc::toString(cur_data_format_.format_) <<
+        RCLCPP_INFO_STREAM(rclcpp::get_logger("V4l2CameraDevice"), "Current pixel format: " << v4l2_fourcc::toString(cur_data_format_.format_) <<
             " @ " << cur_data_format_.width_ << "x" << cur_data_format_.height_);
 
         // List all available image formats and controls
@@ -68,22 +68,22 @@ namespace v4l2_camera
         listImageSizes();
         listControls();
 
-        ROS_INFO("Available pixel formats:");
+        RCLCPP_INFO(rclcpp::get_logger("V4l2CameraDevice"), "Available pixel formats:");
         for (auto const & format : image_formats_)
         {
-            ROS_INFO_STREAM("  " << v4l2_fourcc::toString(format.format_) << " - " << format.description_);
+            RCLCPP_INFO_STREAM(rclcpp::get_logger("V4l2CameraDevice"), "  " << v4l2_fourcc::toString(format.format_) << " - " << format.description_);
         }
 
         if (controls_.empty())
         {
-            ROS_INFO("Available controls: none");
+            RCLCPP_INFO(rclcpp::get_logger("V4l2CameraDevice"), "Available controls: none");
         }
         else
         {
-            ROS_INFO("Available controls:");
+            RCLCPP_INFO(rclcpp::get_logger("V4l2CameraDevice"), "Available controls:");
             for (auto const & control : controls_)
             {
-                ROS_INFO_STREAM("  " << control.name_ << " (" << static_cast<unsigned>(control.type_) <<
+                RCLCPP_INFO_STREAM(rclcpp::get_logger("V4l2CameraDevice"), "  " << control.name_ << " (" << static_cast<unsigned>(control.type_) <<
                     ") = " << getControlValue(control.id_) << (control.inactive_ ? " [inactive]" : ""));
             }
         }
@@ -94,7 +94,7 @@ namespace v4l2_camera
 
     bool V4l2CameraDevice::start()
     {
-        ROS_INFO("Starting camera");
+        RCLCPP_INFO(rclcpp::get_logger("V4l2CameraDevice"), "Starting camera");
 
         // set to YUYV if it is supported by camera
         auto isYuyv = [](ImageFormat Format) { return Format.format_ == V4L2_PIX_FMT_YUYV; };
@@ -124,7 +124,7 @@ namespace v4l2_camera
             buf.index = buffer.index_;
             if (-1 == xioctl(fd_, VIDIOC_QBUF, &buf))
             {
-                ROS_ERROR_STREAM("Buffer failure on capture start: " << strerror(errno) << " (" << errno << ")");
+                RCLCPP_ERROR_STREAM(rclcpp::get_logger("V4l2CameraDevice"), "Buffer failure on capture start: " << strerror(errno) << " (" << errno << ")");
                 return false;
             }
         }
@@ -133,7 +133,7 @@ namespace v4l2_camera
         unsigned type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
         if (-1 == xioctl(fd_, VIDIOC_STREAMON, &type))
         {
-            ROS_ERROR_STREAM("Failed stream start: " << strerror(errno) << " (" << errno << ")");
+            RCLCPP_ERROR_STREAM(rclcpp::get_logger("V4l2CameraDevice"), "Failed stream start: " << strerror(errno) << " (" << errno << ")");
             return false;
         }
         return true;
@@ -152,14 +152,14 @@ namespace v4l2_camera
         // Dequeue buffer with new image
         if (-1 == xioctl(fd_, VIDIOC_DQBUF, &buf))
         {
-            ROS_ERROR_STREAM("Error dequeueing buffer: " << strerror(errno) << " (" << errno << ")");
+            RCLCPP_ERROR_STREAM(rclcpp::get_logger("V4l2CameraDevice"), "Error dequeueing buffer: " << strerror(errno) << " (" << errno << ")");
             return nullptr;
         }
 
         // Requeue buffer to be reused for new captures
         if (-1 == xioctl(fd_, VIDIOC_QBUF, &buf))
         {
-            ROS_ERROR_STREAM("Error re-queueing buffer: " << strerror(errno) << " (" << errno);
+            RCLCPP_ERROR_STREAM(rclcpp::get_logger("V4l2CameraDevice"), "Error re-queueing buffer: " << strerror(errno) << " (" << errno);
             return nullptr;
         }
 
@@ -192,7 +192,7 @@ namespace v4l2_camera
         }
         else
         {
-            ROS_WARN_STREAM("Current pixel format is not supported yet: " <<
+            RCLCPP_WARN_STREAM(rclcpp::get_logger("V4l2CameraDevice"), "Current pixel format is not supported yet: " <<
                 v4l2_fourcc::toString(cur_data_format_.format_) << " " << cur_data_format_.format_);
         }
 
@@ -216,7 +216,7 @@ namespace v4l2_camera
         {
             if (!Silent)
             {
-                ROS_ERROR_STREAM("Failed querying control with ID: " << queryctrl.id << " - " <<
+                RCLCPP_ERROR_STREAM(rclcpp::get_logger("V4l2CameraDevice"), "Failed querying control with ID: " << queryctrl.id << " - " <<
                     strerror(errno) << " (" << errno << ")");
             }
             return {};
@@ -259,7 +259,7 @@ namespace v4l2_camera
         ctrl.id = Id;
         if (-1 == xioctl(fd_, VIDIOC_G_CTRL, &ctrl))
         {
-            ROS_ERROR_STREAM("Failed getting value for control " << ctrl.id << ": " <<
+            RCLCPP_ERROR_STREAM(rclcpp::get_logger("V4l2CameraDevice"), "Failed getting value for control " << ctrl.id << ": " <<
                 strerror(errno) << " (" << errno << "); returning 0!");
 
             return 0;
@@ -292,7 +292,7 @@ namespace v4l2_camera
             frameSizeEnum.pixel_format = format.format_;
             if (-1 == xioctl(fd_, VIDIOC_ENUM_FRAMESIZES, &frameSizeEnum))
             {
-                ROS_ERROR_STREAM("Failed listing frame size " << strerror(errno) << " (" << errno << ")");
+                RCLCPP_ERROR_STREAM(rclcpp::get_logger("V4l2CameraDevice"), "Failed listing frame size " << strerror(errno) << " (" << errno << ")");
                 continue;
             }
 
@@ -308,7 +308,7 @@ namespace v4l2_camera
                 image_sizes_[format.format_] = listContinuousImageSizes(frameSizeEnum);
                 break;
             default:
-                ROS_WARN_STREAM("Frame size type not supported: " << frameSizeEnum.type);
+                RCLCPP_WARN_STREAM(rclcpp::get_logger("V4l2CameraDevice"), "Frame size type not supported: " << frameSizeEnum.type);
                 continue;
             }
         }
@@ -382,7 +382,7 @@ namespace v4l2_camera
         xioctl(fd_, VIDIOC_REQBUFS, &req);
         if (req.count < 2)
         {
-            ROS_ERROR("insufficient buffer memory");
+            RCLCPP_ERROR(rclcpp::get_logger("V4l2CameraDevice"), "insufficient buffer memory");
             return false;
         }
 
@@ -405,7 +405,7 @@ namespace v4l2_camera
 
             if (MAP_FAILED == buffers_[i].start_)
             {
-                ROS_ERROR("Failed mapping device memory");
+                RCLCPP_ERROR(rclcpp::get_logger("V4l2CameraDevice"), "Failed mapping device memory");
                 return false;
             }
         }

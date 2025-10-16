@@ -12,13 +12,14 @@ All text above must be included in any redistribution.
 
 Changelog:
 2024-03-04: Initial version
-2022-xx-xx: xxx
+2025-10-16: Migrate to ros 2
+2025-xx-xx: xxx
 ******************************************************************/
 #include <iostream>
 #include <signal.h>
 #include <functional>
 
-#include <ros/ros.h>
+#include <rclcpp/rclcpp.hpp>
 
 #include "whi_qrcode_pose/whi_qrcode_pose.h"
 
@@ -34,13 +35,15 @@ void signalHandler(int Signal)
 int main(int argc, char** argv)
 {
 	/// node version and copyright announcement
-	std::cout << "\nWHI QR code pose VERSION 00.09.2" << std::endl;
+	std::cout << "\nWHI QR code pose VERSION 02.09.2" << std::endl;
 	std::cout << "Copyright © 2024-2025 Wheel Hub Intelligent Co.,Ltd. All rights reserved\n" << std::endl;
 
 	/// ros infrastructure
+    rclcpp::init(argc, argv);
+
+	// create node
     const std::string nodeName("whi_qrcode_pose"); 
-	ros::init(argc, argv, nodeName);
-	auto nodeHandle = std::make_shared<ros::NodeHandle>(nodeName);
+	auto nodeHandle = std::make_shared<rclcpp::Node>(nodeName);
 
 	/// node logic
 	auto instance = std::make_unique<whi_qrcode_pose::QrcodePose>(nodeHandle);
@@ -53,19 +56,21 @@ int main(int argc, char** argv)
 		instance = nullptr;
 
 		// all the default sigint handler does is call shutdown()
-		ros::shutdown();
+        if (rclcpp::ok())
+        {
+            rclcpp::shutdown();
+        }
 	};
 
 	/// ros spinner
 	// NOTE: We run the ROS loop in a separate thread as external calls such as
 	// service callbacks to load controllers can block the (main) control loop
 #if ASYNC
-	ros::AsyncSpinner spinner(0);
-	spinner.start();
-	ros::waitForShutdown();
+    auto executor = std::make_shared<rclcpp::executors::MultiThreadedExecutor>();
+    executor->add_node(nodeHandle);
+    executor->spin();  // blocking until shutdown
 #else
-	ros::MultiThreadedSpinner spinner(0);
-	spinner.spin();
+    rclcpp::spin(nodeHandle);
 #endif
 
 	std::cout << nodeName << " exited" << std::endl;

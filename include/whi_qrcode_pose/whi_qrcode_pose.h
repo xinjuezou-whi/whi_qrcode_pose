@@ -1,5 +1,5 @@
 /******************************************************************
-QR code pose detection interface under ROS 1
+QR code pose detection interface under ROS 2
 
 Features:
 - instance image source according to configure
@@ -12,15 +12,16 @@ All text above must be included in any redistribution.
 
 Changelog:
 2024-03-04: Initial version
-2022-xx-xx: xxx
+2025-10-16: Migrate to ros 2
+2025-xx-xx: xxx
 ******************************************************************/
 #pragma once
 #include "whi_base_camera.h"
-#include "whi_interfaces/WhiSrvQrcode.h"
+#include "whi_interfaces/srv/whi_srv_qrcode.hpp"
 
-#include <ros/ros.h>
-#include <sensor_msgs/Image.h>
-#include <std_srvs/SetBool.h>
+#include <rclcpp/rclcpp.hpp>
+#include <sensor_msgs/msg/image.hpp>
+#include <std_srvs/srv/set_bool.hpp>
 
 #include <memory>
 #include <thread>
@@ -38,30 +39,28 @@ namespace whi_qrcode_pose
 		static constexpr const char* codeType[TYPE_SUM] = { "qr", "aruco" };
 
     public:
-        QrcodePose(std::shared_ptr<ros::NodeHandle>& NodeHandle);
+        QrcodePose(std::shared_ptr<rclcpp::Node>& NodeHandle);
         ~QrcodePose();
 
     protected:
         void init();
-        void update(const ros::TimerEvent & Event);
+        void update();
         void streaming(std::shared_ptr<WhiCamera> Camera);
-        bool onServiceQrcode(whi_interfaces::WhiSrvQrcode::Request& Request,
-            whi_interfaces::WhiSrvQrcode::Response& Response);
-        bool onServiceActivate(std_srvs::SetBool::Request& Request,
-            std_srvs::SetBool::Response& Response);
+        bool onServiceQrcode(const std::shared_ptr<whi_interfaces::srv::WhiSrvQrcode::Request> Request,
+	        std::shared_ptr<whi_interfaces::srv::WhiSrvQrcode::Response> Response);
+        bool onServiceActivate(const std::shared_ptr<std_srvs::srv::SetBool::Request> Request,
+	        std::shared_ptr<std_srvs::srv::SetBool::Response> Response);
 
     protected:
-        std::shared_ptr<ros::NodeHandle> node_handle_{ nullptr };
-        std::unique_ptr<ros::Timer> non_realtime_loop_{ nullptr };
-        ros::Duration elapsed_time_;
-        double loop_hz_{ 10.0 };
+        std::shared_ptr<rclcpp::Node> node_handle_{ nullptr };
+        rclcpp::TimerBase::SharedPtr non_realtime_loop_{ nullptr };
         bool show_source_image_{ false };
         bool show_detected_image_{ false };
         std::thread th_streaming_;
         std::atomic<bool> terminated_{ false };
-        std::unique_ptr<ros::ServiceServer> service_{ nullptr };
-        std::unique_ptr<ros::ServiceServer> service_activate_{ nullptr };
-        double intrinsic_unit_unit_scale_{ 1.0 };
+        rclcpp::Service<whi_interfaces::srv::WhiSrvQrcode>::SharedPtr service_{ nullptr };
+        rclcpp::Service<std_srvs::srv::SetBool>::SharedPtr service_activate_{ nullptr };
+        double intrinsic_unit_unit_scale_{ 0.1 };
         std::vector<cv::Mat> rotations_;
         std::vector<cv::Mat> translations_;
         std::string codes_;

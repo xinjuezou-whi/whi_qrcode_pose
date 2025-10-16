@@ -1,5 +1,5 @@
 /******************************************************************
-images from path under ROS 1
+images from path under ROS 2
 
 Features:
 - images in folder
@@ -13,7 +13,7 @@ All text above must be included in any redistribution.
 ******************************************************************/
 #include "whi_qrcode_pose/whi_images_from_path.h"
 
-#include <ros/ros.h>
+#include <rclcpp/rclcpp.hpp>
 
 #include <filesystem>
 
@@ -34,7 +34,7 @@ namespace images_from_path
 
     bool ImagePathDevice::start()
     {
-        ROS_INFO("Starting camera");
+        RCLCPP_INFO(rclcpp::get_logger("ImagePathDevice"), "Starting camera");
 
         return true;
     }

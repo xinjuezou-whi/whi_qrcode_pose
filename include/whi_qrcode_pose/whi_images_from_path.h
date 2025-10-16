@@ -1,5 +1,5 @@
 /******************************************************************
-images from path under ROS 1
+images from path under ROS 2
 
 Features:
 - images in folder
@@ -12,7 +12,8 @@ All text above must be included in any redistribution.
 
 Changelog:
 2024-03-04: Initial version
-2024-xx-xx: xxx
+2025-10-16: Migrate to ROS 2
+2025-xx-xx: xxx
 ******************************************************************/
 #pragma once
 #include "whi_base_camera.h"
