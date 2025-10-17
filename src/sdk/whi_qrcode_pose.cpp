@@ -15,6 +15,7 @@ All text above must be included in any redistribution.
 #include "whi_qrcode_pose/whi_v4l_device.h"
 #include "whi_qrcode_pose/whi_images_from_path.h"
 #include "whi_qrcode_pose/whi_images_from_topic.h"
+#include "whi_qrcode_pose/whi_stream.h"
 
 #include <tf2/LinearMath/Matrix3x3.h>
 #include <tf2/LinearMath/Transform.h>
@@ -75,6 +76,12 @@ namespace whi_qrcode_pose
             node_handle_->declare_parameter<std::string>(imgSouce + ".imgPath", std::string(""));
             auto imgPath = node_handle_->get_parameter(imgSouce + ".imgPath").as_string();
             camera = std::make_shared<images_from_path::ImagePathDevice>(imgPath);
+        }
+        else if (imgSouce == "stream")
+        {
+            node_handle_->declare_parameter<std::string>(imgSouce + ".url", std::string(""));
+            auto url = node_handle_->get_parameter(imgSouce + ".url").as_string();
+            camera = std::make_shared<ip_stream::StreamDevice>(url);
         }
         if (camera)
         {

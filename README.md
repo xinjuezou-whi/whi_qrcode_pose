@@ -62,13 +62,15 @@ Refer to the parameters to specify the image source
 ```
 whi_qrcode_pose:
   ros__parameters:
-    source: device # topic/device/path
+    source: device # topic/device/path/stream
     topic:
       img_topic: /whi_pgnd_inspection/color_view #/camera/color/image_raw
     device:
       cam_device: /dev/video0
     path:
       img_path: debug_images
+    stream:
+      url: rtsp://admin:jy100200300@192.168.254.7:554/streaming/channels/101
     frequency: 20 # hz
     show_source_image: true
     show_detected_image: true
