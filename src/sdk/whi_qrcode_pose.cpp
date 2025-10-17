@@ -80,8 +80,18 @@ namespace whi_qrcode_pose
         {
             node_handle_->declare_parameter<std::vector<double>>("intrinsic_projection", std::vector<double>());
             std::vector<double> intrinsicProjection = node_handle_->get_parameter("intrinsic_projection").as_double_array();
-            node_handle_->declare_parameter<std::vector<double>>("intrinsic_distortion", std::vector<double>());
-            std::vector<double> intrinsicDistortion = node_handle_->get_parameter("intrinsic_distortion").as_double_array();
+
+            std::vector<double> intrinsicDistortion;
+            try
+            {
+                node_handle_->declare_parameter<std::vector<double>>("intrinsic_distortion", std::vector<double>());
+                std::vector<double> intrinsicDistortion = node_handle_->get_parameter("intrinsic_distortion").as_double_array();
+            }
+            catch (const rclcpp::exceptions::InvalidParameterTypeException& e)
+            {
+                intrinsicDistortion.resize(4, 0.0);
+                RCLCPP_WARN_STREAM(node_handle_->get_logger(), e.what() << " using default 0.0 size 4");
+            }
 
             camera->setIntrinsicProjection(intrinsicProjection);
             camera->setIntrinsicDistortion(intrinsicDistortion);
@@ -140,8 +150,16 @@ namespace whi_qrcode_pose
             std::bind(&QrcodePose::onServiceActivate, this, std::placeholders::_1, std::placeholders::_2));
 
         // spinner
-        node_handle_->declare_parameter<double>("frequency", 10.0);
-        double frequency = node_handle_->get_parameter("frequency").as_double();
+        double frequency(10.0);
+        try
+        {
+            node_handle_->declare_parameter<double>("frequency", frequency);
+            frequency = node_handle_->get_parameter("frequency").as_double();
+        }
+        catch (const rclcpp::exceptions::InvalidParameterTypeException& e)
+        {
+            RCLCPP_WARN_STREAM(node_handle_->get_logger(), e.what() << " using default " << frequency <<  " Hz");
+        }
         auto period = std::chrono::duration<double>(1.0 / frequency);
         non_realtime_loop_ = node_handle_->create_wall_timer(
             std::chrono::duration_cast<std::chrono::milliseconds>(period),

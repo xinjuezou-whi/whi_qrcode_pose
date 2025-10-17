@@ -31,26 +31,26 @@ sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-9 9
 ### whi_interfaces
 ```
 cd /<your_workspace>/src
-git clone https://github.com/xinjuezou-whi/whi_interfaces.git
+git clone -b ros2 https://github.com/xinjuezou-whi/whi_interfaces.git
 ```
 
 ## Advertised service
-**qrcode_pose**(whi_interfaces::WhiSrvQrcode)
+**qrcode_pose**(whi_interfaces::srv::WhiSrvQrcode)
 
 The argument: count in the request specifies the maximum number of estimated poses for average. The response from the server is filled with the offset(geometry_msgs/PoseStamped) to the camera frame and the encoded contents of the QR code
 
 An example of the average of 5:
 ```
-rosservice call /whi_qrcode_pose/qrcode_pose "count: 5"
+ros2 service call /qrcode_pose "count: 5"
 ```
 
-**qrcode_activate**(std_msgs::Bool)
+**qrcode_activate**(std_srvs::srv::SetBool)
 
 To toggle the activity of the detection
 
 An example of enabling the detection:
 ```
-rosservice call /whi_qrcode_pose/qrcode_activate "data: true"
+ros2 service call /qrcode_activate "data: true"
 ```
 
 ## Image source
@@ -61,26 +61,29 @@ Refer to the parameters to specify the image source
 ## Parameters
 ```
 whi_qrcode_pose:
-  frame_id: camera
-  source: device # topic/device/path
-  topic:
-    img_topic: /whi_pgnd_inspection/color_view
-  device:
-    cam_device: /dev/video0
-  path:
-    img_path: debug_images
-  loop_hz: 20 # hz
-  show_source_image: false
-  show_detected_image: true
-  activated_default: true
-  intrinsic_unit: millimeter # meter
-  intrinsic_projection: [386.157, 386.157, 323.237, 239.697] # focal length x, y, and optical center x, y
-  intrinsic_distortion: [0.0, 0.0, 0.0, 0.0]
-  type: aruco # qr or aruco
-  # ArUco
-  aruco:
-    dictionary: DICT_4X4_50
-    marker_side_length: 0.165 # in meter
+  ros__parameters:
+    source: device # topic/device/path
+    topic:
+      img_topic: /whi_pgnd_inspection/color_view #/camera/color/image_raw
+    device:
+      cam_device: /dev/video0
+    path:
+      img_path: debug_images
+    frequency: 20 # hz
+    show_source_image: true
+    show_detected_image: true
+    activated_default: true
+    intrinsic_unit: millimeter # meter
+    intrinsic_projection: [592.23959, 592.54237, 320.05740, 263.84056] # focal length x, y, and optical center x, y
+    intrinsic_distortion: [0, 0, 0, 0]
+    type: aruco # qr or aruco
+    qr:
+      marker_side_length: 0.061
+    # ArUco
+    aruco:
+      dictionary: DICT_4X4_50
+      marker_side_length: 0.165 # in meter
+      min_marker_perimeter: 100 # in pixel
 ```
 
 ## Build
@@ -88,12 +91,12 @@ whi_qrcode_pose:
 cd /<your_workspace>/src
 git clone https://github.com/xinjuezou-whi/whi_qrcode_pose.git
 cd ..
-catkin build whi_qrcode_pose
-source /<your_workspace>/devel/setup.bash
+colcon build --symlink-install --packages-select whi_qrcode_pose
+source /<your_workspace>/install/setup.bash
 ```
 
 ## Demo with locally stored images
 For a quick demo, change the parameter "source" to "path", edit the "image_path" with your workspace like "/home/<your_workspace>/src/whi_qrcode_pose/debug_images/". And make sure parameters "show_source_image" and "show_detected_image" are both enabled, then run the following command:
 ```
-roslaunch whi_qrcode_pose whi_qrcode_pose.launch
+ros2 launch whi_qrcode_pose launch.py
 ```

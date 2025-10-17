@@ -1,5 +1,5 @@
 /******************************************************************
-abstract camera interface under ROS 1
+abstract camera interface
 
 Features:
 - abstract interfaces
