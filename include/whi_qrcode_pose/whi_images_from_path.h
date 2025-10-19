@@ -27,8 +27,8 @@ namespace images_from_path
     class ImagePathDevice : public WhiCamera
     {
     public:
-        explicit ImagePathDevice(const std::string& Path)
-            : WhiCamera(), path_(Path) {};
+        explicit ImagePathDevice(const std::string& Type, const std::string& Path)
+            : WhiCamera(Type), path_(Path) {};
         virtual ~ImagePathDevice() = default;
 
         bool open() override;

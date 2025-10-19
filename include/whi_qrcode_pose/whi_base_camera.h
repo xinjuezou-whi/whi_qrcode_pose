@@ -21,6 +21,7 @@ class WhiCamera
 {
 public:
     WhiCamera() = default;
+    WhiCamera(const std::string& Type) : type_(Type) {};
     virtual ~WhiCamera() = default;
 
 public:
@@ -29,6 +30,7 @@ public:
     virtual bool stop() = 0;
     virtual std::shared_ptr<cv::Mat> capture() = 0;
     virtual std::string getCameraName() const = 0;
+    std::string getCameraType() { return type_; };
     std::vector<double> getIntrinsicProjection() const
     {
         return intrinsic_projection_;
@@ -47,6 +49,7 @@ public:
     };
 
 protected:
+    std::string type_{ "none" };
     bool is_opened_{ false };
     std::vector<double> intrinsic_projection_;
     std::vector<double> intrinsic_distortion_;

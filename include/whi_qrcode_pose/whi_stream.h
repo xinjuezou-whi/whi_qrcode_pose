@@ -24,8 +24,8 @@ namespace ip_stream
     class StreamDevice : public WhiCamera
     {
     public:
-        explicit StreamDevice(const std::string& Url)
-            : WhiCamera(), url_(Url) {};
+        explicit StreamDevice(const std::string& Type, const std::string& Url)
+            : WhiCamera(Type), url_(Url) {};
         virtual ~StreamDevice() = default;
 
         bool open() override;

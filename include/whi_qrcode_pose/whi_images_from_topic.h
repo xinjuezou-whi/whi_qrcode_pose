@@ -32,8 +32,8 @@ namespace images_from_topic
     class ImageTopicDevice : public WhiCamera
     {
     public:
-        explicit ImageTopicDevice(std::shared_ptr<rclcpp::Node>& NodeHandle, const std::string& Topic)
-            : WhiCamera(), node_handle_(NodeHandle), topic_(Topic) {};
+        explicit ImageTopicDevice(const std::string& Type, std::shared_ptr<rclcpp::Node>& NodeHandle, const std::string& Topic)
+            : WhiCamera(Type), node_handle_(NodeHandle), topic_(Topic) {};
         virtual ~ImageTopicDevice() = default;
 
         bool open() override;

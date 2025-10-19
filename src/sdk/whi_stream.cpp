@@ -22,10 +22,20 @@ namespace ip_stream
         std::string pipeline = "rtspsrc location=" + url_ + " latency=0 ! "
             "rtph264depay ! h264parse ! nvv4l2decoder ! nvvidconv ! video/x-raw,format=BGRx ! "
             "videoconvert ! appsink";
-        capture_ = std::make_unique<cv::VideoCapture>(pipeline, cv::CAP_GSTREAMER); // FFMPEG backend is best for RTSP
+        try
+        {
+            capture_ = std::make_unique<cv::VideoCapture>(pipeline, cv::CAP_GSTREAMER);
+        }
+        catch(const std::exception& e)
+        {
+            RCLCPP_WARN_STREAM(rclcpp::get_logger("ip_stream"), "\033[1;33m" <<
+                "failed to create the capture with error: " << e.what() << "\033[0m");
+        }
+        
         if (!(is_opened_ = capture_->isOpened()))
         {
-            RCLCPP_FATAL_STREAM(rclcpp::get_logger("ip_stream"), "failed to open stream: " << url_);
+            RCLCPP_FATAL_STREAM(rclcpp::get_logger("ip_stream"), "\033[1;31m" <<
+                "failed to open stream: " << url_<< "\033[0m");
         }
         return is_opened_;
     }
@@ -57,7 +67,8 @@ namespace ip_stream
         }
         else
         {
-            RCLCPP_WARN(rclcpp::get_logger("ip_stream"), "failed to read frame from stream");
+            RCLCPP_WARN_STREAM(rclcpp::get_logger("ip_stream"), "\033[1;33m" <<
+                "failed to read frame from stream" << "\033[0m");
             return nullptr;
         }
     }

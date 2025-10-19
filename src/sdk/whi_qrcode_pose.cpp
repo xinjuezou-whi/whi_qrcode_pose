@@ -58,30 +58,36 @@ namespace whi_qrcode_pose
         /// camera
         node_handle_->declare_parameter<std::string>("source", std::string("topic")); // topic, device, path
         auto imgSouce = node_handle_->get_parameter("source").as_string();
-        std::shared_ptr<WhiCamera> camera;
+        std::shared_ptr<WhiCamera> camera(nullptr);
         if (imgSouce == "topic")
         {
             node_handle_->declare_parameter<std::string>(imgSouce + ".img_topic", std::string("image"));
             auto imgTopic = node_handle_->get_parameter(imgSouce + ".img_topic").as_string();
-            camera = std::make_shared<images_from_topic::ImageTopicDevice>(node_handle_, imgTopic);
+            camera = std::make_shared<images_from_topic::ImageTopicDevice>(imgSouce, node_handle_, imgTopic);
         }
         else if (imgSouce == "device")
         {
             node_handle_->declare_parameter<std::string>(imgSouce + ".cam_device", std::string(""));
             auto camDevice = node_handle_->get_parameter(imgSouce + ".cam_device").as_string();
-            camera = std::make_shared<v4l2_camera::V4l2CameraDevice>(camDevice);
+            camera = std::make_shared<v4l2_camera::V4l2CameraDevice>(imgSouce, camDevice);
         }
         else if (imgSouce == "path")
         {
             node_handle_->declare_parameter<std::string>(imgSouce + ".imgPath", std::string(""));
             auto imgPath = node_handle_->get_parameter(imgSouce + ".imgPath").as_string();
-            camera = std::make_shared<images_from_path::ImagePathDevice>(imgPath);
+            camera = std::make_shared<images_from_path::ImagePathDevice>(imgSouce, imgPath);
         }
         else if (imgSouce == "stream")
         {
             node_handle_->declare_parameter<std::string>(imgSouce + ".url", std::string(""));
             auto url = node_handle_->get_parameter(imgSouce + ".url").as_string();
-            camera = std::make_shared<ip_stream::StreamDevice>(url);
+            camera = std::make_shared<ip_stream::StreamDevice>(imgSouce, url);
+        }
+        else
+        {
+            RCLCPP_FATAL_STREAM(node_handle_->get_logger(), "\033[1;31m" <<
+                "Failed to create the camera instance with type: " << imgSouce << "\033[0m");
+            return;
         }
         if (camera)
         {
@@ -97,7 +103,8 @@ namespace whi_qrcode_pose
             catch (const rclcpp::exceptions::InvalidParameterTypeException& e)
             {
                 intrinsicDistortion.resize(4, 0.0);
-                RCLCPP_WARN_STREAM(node_handle_->get_logger(), e.what() << " using default 0.0 size 4");
+                RCLCPP_WARN_STREAM(node_handle_->get_logger(), "\033[1;33m" <<
+                    e.what() << " using default 0.0 size 4" << "\033[0m");
             }
 
             camera->setIntrinsicProjection(intrinsicProjection);
@@ -165,7 +172,8 @@ namespace whi_qrcode_pose
         }
         catch (const rclcpp::exceptions::InvalidParameterTypeException& e)
         {
-            RCLCPP_WARN_STREAM(node_handle_->get_logger(), e.what() << " using default " << frequency <<  " Hz");
+            RCLCPP_WARN_STREAM(node_handle_->get_logger(), "\033[1;33m" <<
+                e.what() << " using default " << frequency <<  " Hz" << "\033[0m");
         }
         auto period = std::chrono::duration<double>(1.0 / frequency);
         non_realtime_loop_ = node_handle_->create_wall_timer(
@@ -188,8 +196,15 @@ namespace whi_qrcode_pose
 
     void QrcodePose::streaming(std::shared_ptr<WhiCamera> Camera)
     {
+        if (!Camera)
+        {
+            return;
+        }
+
         if (!Camera->open())
         {
+            RCLCPP_WARN_STREAM(node_handle_->get_logger(), "\033[1;33m" <<
+                "Failed to open the camera of type " << Camera->getCameraType() << "\033[0m");
             return;
         }
         Camera->start();
@@ -227,8 +242,8 @@ namespace whi_qrcode_pose
                             distortion.size() != 12 &&
                             distortion.size() != 14)
                         {
-                            RCLCPP_WARN_STREAM(node_handle_->get_logger(),
-                                "distortion element number " << distortion.size() << " doesn't meet 4, 5, 8, 12, or 14");
+                            RCLCPP_WARN_STREAM(node_handle_->get_logger(), "\033[1;33m" <<
+                                "distortion element number " << distortion.size() << " doesn't meet 4, 5, 8, 12, or 14" << "\033[0m");
                         }
                         cv::Mat distortionCoeffs(distortion.size(), 1, CV_32F, distortion.data());
 
@@ -296,7 +311,8 @@ namespace whi_qrcode_pose
                                 }
                                 catch (const std::exception& e)
                                 {
-                                    RCLCPP_WARN_STREAM(node_handle_->get_logger(), "failed to solvePnp problem with: " << e.what());
+                                    RCLCPP_WARN_STREAM(node_handle_->get_logger(), "\033[1;33m" <<
+                                        "failed to solvePnp problem with: " << e.what() << "\033[0m");
                                 }
                             }
                         }
