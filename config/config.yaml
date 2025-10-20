@@ -9,7 +9,7 @@ whi_qrcode_pose:
       img_path: debug_images
     stream:
       url: rtsp://admin:jy100200300@192.168.254.7:554/streaming/channels/101
-    frequency: 20 # hz
+    frequency: 20.0 # hz
     show_source_image: true
     show_detected_image: true
     activated_default: true

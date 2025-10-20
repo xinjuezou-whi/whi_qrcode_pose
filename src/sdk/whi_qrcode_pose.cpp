@@ -98,7 +98,13 @@ namespace whi_qrcode_pose
             try
             {
                 node_handle_->declare_parameter<std::vector<double>>("intrinsic_distortion", std::vector<double>());
-                std::vector<double> intrinsicDistortion = node_handle_->get_parameter("intrinsic_distortion").as_double_array();
+                intrinsicDistortion = node_handle_->get_parameter("intrinsic_distortion").as_double_array();
+                if (intrinsicDistortion.empty())
+                {
+                    intrinsicDistortion.resize(4, 0.0);
+                    RCLCPP_WARN_STREAM(node_handle_->get_logger(), "\033[1;33m" <<
+                        "cannot find param intrinsic_distortion" << " using default 0.0 size 4" << "\033[0m");
+                }
             }
             catch (const rclcpp::exceptions::InvalidParameterTypeException& e)
             {
@@ -445,6 +451,8 @@ namespace whi_qrcode_pose
         }
         else
         {
+            RCLCPP_INFO(node_handle_->get_logger(), "QR pose estimation request recieved");
+
             request_count_ = Request->count;
 
             {
