@@ -16,11 +16,19 @@ from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.substitutions import FindPackageShare
-from launch.conditions import IfCondition, UnlessCondition
 from launch_ros.actions import Node
+from launch_ros.descriptions import ParameterFile
+from nav2_common.launch import RewrittenYaml
 
 def generate_launch_description():
+    # Input parameters declaration
+    namespace = LaunchConfiguration('namespace')
+
     # Declare launch arguments
+    declare_namespace_arg = DeclareLaunchArgument(
+        'namespace', default_value='',
+        description='Top-level namespace'
+    )
 
     # Get config file path
     config_file = PathJoinSubstitution([
@@ -29,17 +37,29 @@ def generate_launch_description():
         'config.yaml'
     ])
 
+    configured_params = ParameterFile(
+        RewrittenYaml(
+            source_file=config_file,
+            root_key=namespace,
+            param_rewrites={},
+            convert_types=True,
+        ),
+        allow_substs=True,
+    )
+
     # Node definition
     start_whi_qrcode_node = Node(
         package='whi_qrcode_pose',
         executable='whi_qrcode_pose_node',
         name='whi_qrcode_pose',
+        namespace=namespace,
         parameters=[
-            config_file,
+            configured_params,
         ],
         output='screen',
     )
 
     return LaunchDescription([
+        declare_namespace_arg,
         start_whi_qrcode_node
     ])
