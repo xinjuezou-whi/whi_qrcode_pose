@@ -161,13 +161,19 @@ namespace whi_qrcode_pose
             min_marker_perimeter_ = node_handle_->get_parameter("aruco.min_marker_perimeter").as_int();
         }
 
-        streaming(camera);
+        node_handle_->declare_parameter<int>("count_to_publish", 5);
+        publish_count_ = node_handle_->get_parameter("count_to_publish").as_int();
+        estimate_count_ = publish_count_;
 
+        // publish
+        pub_ = node_handle_->create_publisher<geometry_msgs::msg::PoseStamped>("qrcode_pose", 10);
         // service
         service_ = node_handle_->create_service<whi_interfaces::srv::WhiSrvQrcode>("qrcode_pose",
             std::bind(&QrcodePose::onServiceQrcode, this, std::placeholders::_1, std::placeholders::_2));
         service_activate_ = node_handle_->create_service<std_srvs::srv::SetBool>("qrcode_activate",
             std::bind(&QrcodePose::onServiceActivate, this, std::placeholders::_1, std::placeholders::_2));
+
+        streaming(camera);
 
         // spinner
         double frequency(10.0);
@@ -292,14 +298,17 @@ namespace whi_qrcode_pose
                                         cv::solvePnPRefineLM(objPoints, corners, cameraMatrix, distortionCoeffs,
                                             rvec, tvec);
 
-                                        if (request_count_ > 0)
+                                        if (estimate_count_ > 0)
                                         {
                                             rotations_.push_back(rvec);
                                             translations_.push_back(tvec);
 
-                                            if (rotations_.size() >= request_count_)
+                                            if (rotations_.size() >= estimate_count_)
                                             {
-                                                request_count_ = 0;
+                                                estimate();
+                                                pub_->publish(estimated_pose_);
+                                                translations_.clear();
+                                                rotations_.clear();
                                                 cv_.notify_all();
                                             }
                                         }
@@ -360,7 +369,7 @@ namespace whi_qrcode_pose
                                         cv::solvePnPRefineLM(objPoints, cornersList.at(i), cameraMatrix, distortionCoeffs,
                                             rvecs.at(i), tvecs.at(i));
 
-                                        if (request_count_ > 0 && i == 0)
+                                        if (estimate_count_ > 0 && i == 0) // one marker supported so far
                                         {
                                             codes_ = std::to_string(markerIds.at(i));
 
@@ -383,9 +392,12 @@ namespace whi_qrcode_pose
                                             std::cout << "matTrans:" << translations_.back() << std::endl;
 #endif
 
-                                            if (rotations_.size() >= request_count_)
+                                            if (rotations_.size() >= estimate_count_)
                                             {
-                                                request_count_ = 0;
+                                                estimate();
+                                                pub_->publish(estimated_pose_);
+                                                translations_.clear();
+                                                rotations_.clear();
                                                 cv_.notify_all();
                                             }
                                         }
@@ -442,6 +454,48 @@ namespace whi_qrcode_pose
         return average;
     }
 
+    void QrcodePose::estimate()
+    {
+        // compute the average of positions
+        for (const auto& it : translations_)
+        {
+            estimated_pose_.pose.position.x += it.at<double>(0, 0) * intrinsic_unit_unit_scale_;
+            estimated_pose_.pose.position.y += it.at<double>(0, 1) * intrinsic_unit_unit_scale_;
+            estimated_pose_.pose.position.z += it.at<double>(0, 2) * intrinsic_unit_unit_scale_;
+        }
+        estimated_pose_.pose.position.x /= translations_.size();
+        estimated_pose_.pose.position.y /= translations_.size();
+        estimated_pose_.pose.position.z /= translations_.size();
+        translations_.clear();
+
+        // compute the average of quaternions
+        std::vector<geometry_msgs::msg::Quaternion> quaternios;
+        for (const auto& it : rotations_)
+        {
+            std::vector<double> vec;
+            vec.resize(3);
+            vec[0] = it.at<double>(0, 0);
+            vec[1] = it.at<double>(0, 1);
+            vec[2] = it.at<double>(0, 2);
+            cv::Mat rotVec(vec);
+
+            cv::Mat rotMat;
+            cv::Rodrigues(rotVec, rotMat);
+            // convert to tf2::Matrix3x3
+            tf2::Matrix3x3 tf2Rotation(rotMat.at<double>(0, 0), rotMat.at<double>(0, 1), rotMat.at<double>(0, 2),
+                rotMat.at<double>(1, 0), rotMat.at<double>(1, 1), rotMat.at<double>(1, 2),
+                rotMat.at<double>(2, 0), rotMat.at<double>(2, 1), rotMat.at<double>(2, 2));
+
+            tf2::Transform tf2Transform(tf2Rotation);
+            geometry_msgs::msg::Pose poseMsg;
+            tf2::toMsg(tf2Transform, poseMsg);
+
+            quaternios.push_back(poseMsg.orientation);
+        }
+        rotations_.clear();
+        estimated_pose_.pose.orientation = averageQuaternions(quaternios);
+    }
+
     bool QrcodePose::onServiceQrcode(const std::shared_ptr<whi_interfaces::srv::WhiSrvQrcode::Request> Request,
 	    std::shared_ptr<whi_interfaces::srv::WhiSrvQrcode::Response> Response)
     {
@@ -453,13 +507,13 @@ namespace whi_qrcode_pose
         {
             RCLCPP_INFO(node_handle_->get_logger(), "QR pose estimation request recieved");
 
-            request_count_ = Request->count;
+            estimate_count_ = Request->count; // set the count for service request
 
             {
                 std::unique_lock<std::mutex> lock(mtx_);
-                if (cv_.wait_for(lock, std::chrono::seconds(std::max(5, int(1.5 * request_count_)))) == std::cv_status::timeout)
+                if (cv_.wait_for(lock, std::chrono::seconds(std::max(5, int(1.5 * Request->count)))) == std::cv_status::timeout)
                 {
-                    request_count_ = 0;
+                    estimate_count_ = publish_count_; // restore to the publish count
                     translations_.clear();
                     rotations_.clear();
                     return false;
@@ -469,44 +523,8 @@ namespace whi_qrcode_pose
             // get the code's contents
             Response->code = codes_;
 
-            // compute the average of positions
-            for (const auto& it : translations_)
-            {
-                Response->offset_pose.pose.position.x += it.at<double>(0, 0) * intrinsic_unit_unit_scale_;
-                Response->offset_pose.pose.position.y += it.at<double>(0, 1) * intrinsic_unit_unit_scale_;
-                Response->offset_pose.pose.position.z += it.at<double>(0, 2) * intrinsic_unit_unit_scale_;
-            }
-            Response->offset_pose.pose.position.x /= translations_.size();
-            Response->offset_pose.pose.position.y /= translations_.size();
-            Response->offset_pose.pose.position.z /= translations_.size();
-            translations_.clear();
-
-            // compute the average of quaternions
-            std::vector<geometry_msgs::msg::Quaternion> quaternios;
-            for (const auto& it : rotations_)
-            {
-                std::vector<double> vec;
-                vec.resize(3);
-                vec[0] = it.at<double>(0, 0);
-                vec[1] = it.at<double>(0, 1);
-                vec[2] = it.at<double>(0, 2);
-                cv::Mat rotVec(vec);
-
-                cv::Mat rotMat;
-                cv::Rodrigues(rotVec, rotMat);
-                // convert to tf2::Matrix3x3
-                tf2::Matrix3x3 tf2Rotation(rotMat.at<double>(0, 0), rotMat.at<double>(0, 1), rotMat.at<double>(0, 2),
-                    rotMat.at<double>(1, 0), rotMat.at<double>(1, 1), rotMat.at<double>(1, 2),
-                    rotMat.at<double>(2, 0), rotMat.at<double>(2, 1), rotMat.at<double>(2, 2));
-
-                tf2::Transform tf2Transform(tf2Rotation);
-                geometry_msgs::msg::Pose poseMsg;
-                tf2::toMsg(tf2Transform, poseMsg);
-
-                quaternios.push_back(poseMsg.orientation);
-            }
-            rotations_.clear();
-            Response->offset_pose.pose.orientation = averageQuaternions(quaternios);
+            // estimate
+            Response->offset_pose = estimated_pose_;
 
             // convert to eulers
             tf2::Quaternion q(Response->offset_pose.pose.orientation.x, Response->offset_pose.pose.orientation.y,
@@ -518,6 +536,8 @@ namespace whi_qrcode_pose
             {
                 Response->eulers_degree[i] = angles::to_degrees(Response->eulers[i]);
             }
+
+            estimate_count_ = publish_count_; // restore to the publish count
 
             return true;
         }

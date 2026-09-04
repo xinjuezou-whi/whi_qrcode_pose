@@ -46,6 +46,7 @@ namespace whi_qrcode_pose
         void init();
         void update();
         void streaming(std::shared_ptr<WhiCamera> Camera);
+        void estimate();
         bool onServiceQrcode(const std::shared_ptr<whi_interfaces::srv::WhiSrvQrcode::Request> Request,
 	        std::shared_ptr<whi_interfaces::srv::WhiSrvQrcode::Response> Response);
         bool onServiceActivate(const std::shared_ptr<std_srvs::srv::SetBool::Request> Request,
@@ -58,16 +59,19 @@ namespace whi_qrcode_pose
         bool show_detected_image_{ false };
         std::thread th_streaming_;
         std::atomic<bool> terminated_{ false };
+        rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr pub_{ nullptr };
         rclcpp::Service<whi_interfaces::srv::WhiSrvQrcode>::SharedPtr service_{ nullptr };
         rclcpp::Service<std_srvs::srv::SetBool>::SharedPtr service_activate_{ nullptr };
         double intrinsic_unit_unit_scale_{ 0.1 };
         std::vector<cv::Mat> rotations_;
         std::vector<cv::Mat> translations_;
         std::string codes_;
+        geometry_msgs::msg::PoseStamped estimated_pose_;
         std::mutex mtx_;
         std::condition_variable cv_;
         bool activated_{ false };
-        int request_count_{ 0 };
+        int publish_count_{ 5 };
+        int estimate_count_{ 0 };
         std::string code_type_{ codeType[TYPE_QR] };
         double marker_side_length_qr_{ 0.165 }; // in meter
         double marker_side_length_aruco_{ 0.165 }; // in meter
