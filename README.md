@@ -34,6 +34,9 @@ cd /<your_workspace>/src
 git clone -b ros2 https://github.com/xinjuezou-whi/whi_interfaces.git
 ```
 
+## Advertised topic
+**qrcode_pose**(geometry_msgs::msg::PoseStamped)
+
 ## Advertised service
 **qrcode_pose**(whi_interfaces::srv::WhiSrvQrcode)
 
@@ -41,7 +44,7 @@ The argument: count in the request specifies the maximum number of estimated pos
 
 An example of the average of 5:
 ```
-ros2 service call /qrcode_pose "count: 5"
+ros2 service call /qrcode_pose whi_interfaces/srv/WhiSrvQrcode "{count: 5}"
 ```
 
 **qrcode_activate**(std_srvs::srv::SetBool)
@@ -50,7 +53,7 @@ To toggle the activity of the detection
 
 An example of enabling the detection:
 ```
-ros2 service call /qrcode_activate "data: true"
+ros2 service call /qrcode_activate std_srvs/srv/SetBool "{data: true}"
 ```
 
 ## Image source
@@ -77,7 +80,8 @@ whi_qrcode_pose:
     activated_default: true
     intrinsic_unit: millimeter # meter
     intrinsic_projection: [592.23959, 592.54237, 320.05740, 263.84056] # focal length x, y, and optical center x, y
-    intrinsic_distortion: [0, 0, 0, 0]
+    intrinsic_distortion: [0.0, 0.0, 0.0, 0.0]
+    count_to_publish: 5
     type: aruco # qr or aruco
     qr:
       marker_side_length: 0.061
@@ -93,7 +97,7 @@ whi_qrcode_pose:
 cd /<your_workspace>/src
 git clone https://github.com/xinjuezou-whi/whi_qrcode_pose.git
 cd ..
-colcon build --symlink-install --packages-select whi_qrcode_pose
+colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release --packages-select whi_qrcode_pose
 source /<your_workspace>/install/setup.bash
 ```
 
